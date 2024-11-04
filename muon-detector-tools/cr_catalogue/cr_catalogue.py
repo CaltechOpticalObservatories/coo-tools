@@ -8,7 +8,7 @@ from scipy.signal import find_peaks
 
 def cr_catalogue(data_dir="", zscore_limit=2.5):
     # Get image list
-    cr_list = sorted(glob.glob(f'{data_dir}/img*_cr.cat'))
+    cr_list = sorted(glob.glob(f'{data_dir}/*_cr.cat'))
     if not cr_list:
         print("No cr files found.")
         return

@@ -13,7 +13,11 @@ def muon_detect(data_dir="", mw0=0.62, mw1=0.73, gplot=None, hplot=None, ps=None
     bin_size = 0.025
 
     # Get list of fits images
-    im_list = sorted(glob.glob(f'{data_dir}/img*_00.fits'))
+    all_fits_files = sorted(glob.glob(f'{data_dir}/*.fits'))
+
+    # Filter out files that end with '_seg.fits'
+    im_list = [f for f in all_fits_files if not f.endswith('_seg.fits')]
+
     if not im_list:
         print("No image files found.")
         return
