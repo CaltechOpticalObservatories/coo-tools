@@ -6,7 +6,6 @@ from scipy.optimize import curve_fit
 def gaussian(x, a, x0, sigma, offset):
     return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2)) + offset
 
-# Reuse the muon_sample function from previous code
 def muon_sample(im, seg, sno, x, gplot=False):
     """
     muon_sample - Return the y trace of a muon.

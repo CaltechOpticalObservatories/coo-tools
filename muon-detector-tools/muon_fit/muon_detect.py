@@ -4,15 +4,17 @@ from astropy.io import fits
 from scipy.stats import norm
 import matplotlib.pyplot as plt
 from muon_fit.muon_sample import muon_sample
+from muon_fit.plot_cr import plot_cr
+from muon_fit.plot_histogram import plot_histogram
 
 
-def muon_fit(data_dir="", mw0=0.62, mw1=0.73, gplot=None, hplot=None, ps=None, crplot=None, verbose=None):
+def muon_detect(data_dir="", mw0=0.62, mw1=0.73, gplot=None, hplot=None, ps=None, crplot=None, verbose=None):
     # Initial parameters
     bin_size = 0.025
 
-    # Get image list
-    imlist = sorted(glob.glob(f'{data_dir}/img*_00.fits'))
-    if not imlist:
+    # Get list of fits images
+    im_list = sorted(glob.glob(f'{data_dir}/img*_00.fits'))
+    if not im_list:
         print("No image files found.")
         return
 
@@ -21,14 +23,14 @@ def muon_fit(data_dir="", mw0=0.62, mw1=0.73, gplot=None, hplot=None, ps=None, c
     p = 0
 
     # Loop over images
-    for imf in imlist:
-        print(f"Processing: {imf}")
+    for im_file in im_list:
+        print(f"Processing: {im_file}")
         # Read image and segmentation files
-        im = fits.getdata(imf)
-        seg = fits.getdata(f"{imf.split('.')[0]}_seg.fits")
+        im = fits.getdata(im_file)
+        seg = fits.getdata(f"{im_file.split('.')[0]}_seg.fits")
 
         # Read the corresponding CR.cat file with the updated format
-        cat_file = f"{imf.split('.')[0]}_cr.cat"
+        cat_file = f"{im_file.split('.')[0]}_cr.cat"
         cat_data = np.loadtxt(cat_file, usecols=(0, 1, 2, 3, 4, 5), comments='#')
 
         sids, xs, ys, rms_a, rms_b, thetas = cat_data.T
@@ -89,7 +91,7 @@ def muon_fit(data_dir="", mw0=0.62, mw1=0.73, gplot=None, hplot=None, ps=None, c
 
                             # Optional crplot
                             if crplot:
-                                plot_cr(xx, sg, yfit, sno)
+                                plot_cr(xx, sg, yfit, sno, verbose)
                         else:
                             print(f"No valid weights for fitting in segment {sno}")
                     else:
@@ -99,15 +101,11 @@ def muon_fit(data_dir="", mw0=0.62, mw1=0.73, gplot=None, hplot=None, ps=None, c
 
         big = big[big > 0]
         small = small[small > 0]
-        print(f'{imf}: N CRs = {len(big)}')
-
-        # Optional histogram plotting
+        print(f'{im_file}: N CRs = {len(big)}')
+        
+        # plot histogram
         if hplot:
-            plt.hist(big, bins=np.arange(0, 1.5, bin_size), alpha=0.7, label='Big')
-            plt.hist(small, bins=np.arange(0, 1.5, bin_size), alpha=0.7, label='Small', linestyle='--')
-            plt.title(imf)
-            plt.legend()
-            plt.show()
+            plot_histogram(im_file, big, small, bin_size)
 
 
     allbig = allbig[allbig > 0]
@@ -118,7 +116,7 @@ def muon_fit(data_dir="", mw0=0.62, mw1=0.73, gplot=None, hplot=None, ps=None, c
     diflen = np.sqrt(allbig ** 2 - allsmall ** 2) * 15.0
     diflen2 = np.sqrt(allbig ** 2 - (1/12)) * 15.0 # (1/12^(1/2))**2 is 1/12
 
-    print(f"Processed {len(imlist)} images, {p} muon CRs")
+    print(f"Processed {len(im_list)} images, {p} muon CRs")
 
     # Create the histograms
     bin_width = 0.25
@@ -188,54 +186,4 @@ def muon_fit(data_dir="", mw0=0.62, mw1=0.73, gplot=None, hplot=None, ps=None, c
     plt.xlim(2,20)
 
     # Display the plot
-    plt.show()
-
-# Cr_plot
-def plot_cr(xx, sg, yfit, sno, psfile=None):
-    # Set up plot appearance
-    fig, ax = plt.subplots()
-    ax.set_facecolor('white')
-    ax.spines['bottom'].set_color('black')
-    ax.spines['top'].set_color('black')
-    ax.spines['left'].set_color('black')
-    ax.spines['right'].set_color('black')
-
-    # Font size and thickness
-    th = 5
-    si = 1.75
-    ax.set_title(f'CR#: {sno}', fontsize=si * 10)
-    ax.set_xlabel('X (px)', fontsize=si * 10, weight='bold')
-    ax.set_ylabel('Signal (px)', fontsize=si * 10, weight='bold')
-    ax.tick_params(axis='both', which='major', labelsize=si * 10, width=th)
-    ax.set_xlim([xx.min() - 1, xx.max() + 1])
-    ax.set_ylim([sg.min() - 1, sg.max() + 1])
-
-    print(f"xx: {xx}, sg: {sg}, yfit: {yfit}")
-
-    # Plot the signal points
-    ax.plot(xx, sg, 'o', label='Signal', color='blue', markersize=5)
-
-    # Plot the linear fit
-    ax.plot(xx, yfit, '--', label='Fit', linewidth=3, color='red')
-
-    # Plot vertical lines marking the big and small values
-    ax.axvline(x=xx.max(), linestyle=':', color='black', linewidth=2, label='Big Value')
-    ax.axvline(x=xx.min(), linestyle=':', color='black', linewidth=2, label='Small Value')
-
-    # Horizontal reference line at 1/sqrt(12)
-    ax.axhline(y=1 / np.sqrt(12), linestyle='-.', color='black', linewidth=3)
-
-    # # Add labels for big/small and 1/12^0.5
-    # ax.text(1305, 0.3, '1/12$^{1/2}$', fontsize=si * 10)
-    # ax.text(1284, 0.2, 'MAX', fontsize=si * 10)
-    # ax.text(1325, 0.2, 'MIN', fontsize=si * 10)
-
-    # Add legend
-    ax.legend()
-
-    # Save the figure if a filename is provided
-    if psfile:
-        plt.savefig(psfile)
-
-    # Show the plot
     plt.show()
