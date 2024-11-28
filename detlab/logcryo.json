@@ -1,0 +1,7 @@
+{
+    "name": "deimos",
+    "logroot": "/home/detlab/public_html",
+    "presshost": "131.214.200.34",
+    "pressport": 8000,
+    "pressrate": 60
+}

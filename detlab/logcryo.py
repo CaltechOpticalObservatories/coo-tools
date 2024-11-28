@@ -39,7 +39,7 @@ pressrate=     <-- rate in seconds at which to log pressure
 
 import traceback
 import argparse
-import configparser
+import json
 import socket
 import select
 import sys
@@ -782,50 +782,46 @@ if __name__ == "__main__":
     signal.signal( signal.SIGINT, signal_handler )
 
     parser=argparse.ArgumentParser(description='logger')
-    parser.add_argument( 'inifile', help='.ini file required to configure the logger' )
+    parser.add_argument( 'inifile', help='.json file required to configure the logger' )
     args = parser.parse_args()
-
-    config = configparser.ConfigParser()
-    config.read( args.inifile )
-
-    # need to have a [logger] section
-    #
-    if 'logger' not in config:
-        print( time.ctime(), "(main) ERROR: %s missing section 'logger'" % args.inifile )
-        sys.exit(1)
+    
+    with open(args.inifile) as cfg_fl:
+        config = json.load(cfg_fl)
 
     # need to have a project name and it can't be empty
     #
-    if 'name' in config['logger']:
-        if not config['logger']['name']:
+    if 'name' in config:
+        if not config['name']:
             print( time.ctime(), "(main) ERROR: 'name' in %s cannot be empty!" % args.inifile )
             sys.exit(1)
-        project_name = config['logger']['name']
+        project_name = config['name']
     else:
         print( time.ctime(), "(main) ERROR: %s missing config key 'name'" % args.inifile )
         sys.exit(1)
 
     # get the temperature host and port numbers from the ini file
     #
-    if 'temphost' in config['logger']:
+    if 'temphost' in config:
         logtemps = True
         print( time.ctime(), "(main) found temphost, logtemps is enabled" )
-        temp_host = config['logger']['temphost']
+        if 'tempport' not in config:
+            print( time.ctime(), "(main) ERROR: 'tempport' missing!")
+            sys.exit(1)
     else:
         logtemps = False
-        print( time.ctime(), "(main) missing temphost, logtemps is disaabled" )
-    if 'tempport' in config['logger']:
-        temp_port = config['logger']['tempport']
+        print( time.ctime(), "(main) missing temphost, logtemps is disabled" )
 
     # get the pressure host and port numbers from the ini file
     #
-    if 'presshost' in config['logger']:
+    if 'presshost' in config:
         islogpress = True
-        press_host = config['logger']['presshost']
+        print( time.ctime(), "(main) found presshost, logpress is enabled" )
+        if 'pressport' not in config:
+            print( time.ctime(), "(main) ERROR: 'pressport' missing!")
+            sys.exit(1)
     else:
         islogpress = False
-    if 'pressport' in config['logger']:
-        press_port = int(config['logger']['pressport'])
+        print( time.ctime(), "(main) missing presshost, logpress is disabled" )
 
     # If we're logging temperatures then get everything needed for that
     #
@@ -833,8 +829,8 @@ if __name__ == "__main__":
 
         # get the temperature channels to log from the ini file
         #
-        if 'tempchans' in config['logger']:
-            temp_channels = config['logger']['tempchans'].split(',')
+        if 'tempchans' in config:
+            temp_channels = config['tempchans'].split(',')
         else:
             print( time.ctime(), "(main) ERROR: %s missing config key 'tempchans'" % args.inifile )
             sys.exit(1)
@@ -843,8 +839,8 @@ if __name__ == "__main__":
 
         # get the temperature channel labels from the ini file
         #
-        if 'templabels' in config['logger']:
-            temp_labels = config['logger']['templabels'].split(',')
+        if 'templabels' in config:
+            temp_labels = config['templabels'].split(',')
         else:
             print( time.ctime(), "(main) ERROR: %s missing config key 'templabels'" % args.inifile )
             sys.exit(1)
@@ -859,15 +855,16 @@ if __name__ == "__main__":
             for chan, label in zip(temp_channels, temp_labels):
                 header_list.append( chan+":"+label )
             temp_header = ', '.join( header_list )
+            config['temp_header'] = temp_header
         else:
-            print( time.ctime(), "(main) ERROR: must have same number of tempchans (%d) as templabels (%d)" % \
+            print( time.ctime(), "(main) ERROR: must have same number of tempchans (%d) as templabels (%d)" % 
                    ( len(temp_channels), len(temp_labels) ) )
             sys.exit(1)
 
         # get the heater channels to log from the ini file
         #
-        if 'heaterchans' in config['logger']:
-            heater_channels = config['logger']['heaterchans'].split(',')
+        if 'heaterchans' in config:
+            heater_channels = config['heaterchans'].split(',')
         else:
             print( time.ctime(), "(main) ERROR: %s missing config key 'heaterchans'" % args.inifile )
             sys.exit(1)
