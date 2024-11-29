@@ -3,5 +3,6 @@
     "logroot": "/home/detlab/public_html",
     "presshost": "131.214.200.34",
     "pressport": 8000,
-    "pressrate": 60
+    "pressrate": 60,
+    "pressnports": 6
 }

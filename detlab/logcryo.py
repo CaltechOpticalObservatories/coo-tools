@@ -602,10 +602,10 @@ def check_files( logfile ):
 #
 # This function is called by the scheduler.
 # -----------------------------------------------------------------------------
-def logpress():
-    press_host='131.215.200.34'
-    press_port=8000
-    project_path='/home/detlab/public_html/deimos'
+def logpress(**kwargs):
+    press_host=kwargs['presshost']
+    press_port=kwargs['pressport']
+    project_path=os.path.join(kwargs['logroot'], kwargs['name'])
 
     # create log file and needed paths if necessary
     save_path = project_path + "/" + YEAR + "/" + datetime.now().strftime("%Y%m%d")
@@ -764,18 +764,6 @@ def logtemp():
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
 
-    global press_host
-    global press_port
-    global press_rate
-    global temp_host
-    global temp_port
-    global temp_rate
-    global project_name
-    global project_path
-    global temp_channels
-    global temp_header
-    global heater_channels
-
     jobs_started = 0
 
     signal.signal( signal.SIGTERM, signal_handler )
@@ -798,6 +786,18 @@ if __name__ == "__main__":
     else:
         print( time.ctime(), "(main) ERROR: %s missing config key 'name'" % args.inifile )
         sys.exit(1)
+        
+     
+    # need to have a log root dir and it can't be empty
+    #
+    if 'logroot' in config:
+        if not config['logroot']:
+            print( time.ctime(), "(main) ERROR: 'logroot' in %s cannot be empty!" % args.inifile )
+            sys.exit(1)
+    else:
+        print( time.ctime(), "(main) ERROR: %s missing config key 'logroot'" % args.inifile )
+        sys.exit(1)
+        
 
     # get the temperature host and port numbers from the ini file
     #
@@ -873,8 +873,8 @@ if __name__ == "__main__":
 
         # get the heater channel labels from the ini file
         #
-        if 'heaterlabels' in config['logger']:
-            heater_labels = config['logger']['heaterlabels'].split(',')
+        if 'heaterlabels' in config:
+            heater_labels = config['heaterlabels'].split(',')
         else:
             print( time.ctime(), "(main) ERROR: %s missing config key 'heaterlabels'" % args.inifile )
             sys.exit(1)
@@ -887,6 +887,7 @@ if __name__ == "__main__":
             for chan, label in zip(heater_channels, heater_labels):
                 header_list.append( chan+":"+label )
             temp_header += ', '.join( header_list )
+            config['temp_header'] = temp_header
         else:
             print( time.ctime(),
                    "(main) ERROR: must have same number of heaterchans (%d) as "
@@ -896,26 +897,19 @@ if __name__ == "__main__":
 
         # get temperature logging rate from ini file
         #
-        if 'temprate' in config['logger']:
-            if config['logger']['temprate']:
-                temp_rate = int( config['logger']['temprate'] )
-            else:
-                temp_rate = 60
+        if 'temprate' not in config:
+            config['temprate'] = 60
 
     # If we're logging pressure then get everything needed for that
     #
     if islogpress:
         # get pressure logging rate from ini file
         #
-        if 'pressrate' in config['logger']:
-            if config['logger']['pressrate']:
-                press_rate = int( config['logger']['pressrate'] )
-            else:
-                press_rate = 60
-
-    project_path = ROOTPATH + "/" + project_name
+        if 'pressrate' not in config:
+            config['pressrate'] = 60
 
     # create project directory if needed
+    project_path = os.path.join(config['logroot'], config['name'])
     if not os.path.exists( project_path ):
         print( time.ctime(), "(main) creating ", project_path )
         try:
@@ -925,9 +919,10 @@ if __name__ == "__main__":
 
     # if we have everything needed for temperature logging then start a thread
     #
-    if logtemps and temp_host and temp_port and temp_rate and ( temp_channels or heater_channels):
-        print( time.ctime(), "(main) starting temperature logging for %s" % project_name )
-        temp_logging = Job( interval=timedelta(seconds=temp_rate), execute=logtemp )
+    if logtemps:
+        print( time.ctime(), "(main) starting temperature logging for %s" % config['name'] )
+        temp_logging = Job( interval=timedelta(seconds=config['temprate']), execute=logtemp,
+        **config )
         temp_logging.start()
         jobs_started += 1
     else:
@@ -940,7 +935,7 @@ if __name__ == "__main__":
     #
     if islogpress and press_host and press_port and press_rate:
         print( time.ctime(), "(main) starting pressure logging" )
-        press_logging = Job( interval=timedelta(seconds=press_rate), execute=logpress )
+        press_logging = Job( interval=timedelta(seconds=press_rate), execute=logpress, **config )
         press_logging.start()
         jobs_started += 1
     else:
