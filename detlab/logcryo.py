@@ -2,39 +2,38 @@
 """
 Log cryostat info
 
-@file      logdet.py
+@file      logcryo.py
 @brief     temperature and pressure logger
 @author    David Hale <dhale@astro.caltech.edu>
 @date      2022-01-03
 
 HOW TO USE:
 
-1. create a .ini file (see format below) to define the project name,
-        lakeshore host, etc.
-2. ensure that ROOTPATH/index-html-src.in exists (source for index.html file)
-3. ensure that ROOTPATH/dygraph-combined.js exists
-        (Javascript which does the graphing)
-4. run this script with the .ini file as an argument,
-        i.e. "logtemp.py myfile.ini" (may be run from command line or cron)
-
-.ini file requirements:
-
-[logger]       <-- required first line
-name=          <-- project name
-temphost=      <-- hostname for temperature source
-            (i.e. Lakeshore, terminal server, etc.)
-tempport=      <-- port number for temperature server
-temprate=      <-- rate in seconds at which to log temperature
-tempchans=     <-- comma separated list of Lakeshore channels
+1. edit logcryo.json file (see format below) to define the project name,
+        logging root, controller hosts, channel info, etc.
+.json file requirements:
+{
+    "name": <project name>
+    "logroot": <logging root directory>
+    "temphost": <hostname or IP address for temperature source>
+                (i.e. Lakeshore, terminal server, etc.)
+    "tempport": <port number for temperature server>
+    "temprate": <rate in seconds at which to log temperature>
+    "tempchans": <comma separated list of Lakeshore channels>
                 (i.e. A,B,C1, etc.)
-templabels=    <-- comma separated list of labels for temperature channels
+    "templabels": <comma separated list of labels for temperature channels>
                 (i.e., Cold Plate, Radiation Shield, etc.)
-heaterchans=   <-- comma separated list of heater channels
-heaterlabels=  <-- comma separated list of heater labels
-presshost=     <-- hostname for pressure server
-pressport=     <-- port number of pressure server
-pressrate=     <-- rate in seconds at which to log pressure
+    "heaterchans": <comma separated list of heater channels>
+    "heaterlabels": <comma separated list of heater labels>
+    "presshost": <hostname or IP for pressure server>
+    "pressport": <port number of pressure server>
+    "pressrate": <rate in seconds at which to log pressure>
+    "presschans": <comma separated list of pressure gauge channels>
+    "presslabels": <comma separated list of labels for pressure channels>
+}
 
+2. run this script with the .json file as an argument,
+        i.e. "logcryo.py myfile.json" (may be run from command line or cron)
 """
 
 import traceback
@@ -52,7 +51,6 @@ import threading
 import numpy
 
 YEAR = datetime.now().strftime("%Y")
-ROOTPATH = "/home/detlab/public_html"
 
 # random period retry boundaries --
 # for retry, wait a random period between RND0 and RND1 seconds
@@ -536,8 +534,7 @@ def check_files( logfile ):
     """ Check if logfile exists """
 
     # the directory of where data files will be saved
-    project_path='/home/detlab/public_html/deimos'
-    save_path = project_path + "/" + YEAR + "/" + datetime.now().strftime("%Y%m%d")
+    save_path = os.path.dir( logfile )
 
     # check that all the needed support files are in place
     #
@@ -770,10 +767,10 @@ if __name__ == "__main__":
     signal.signal( signal.SIGINT, signal_handler )
 
     parser=argparse.ArgumentParser(description='logger')
-    parser.add_argument( 'inifile', help='.json file required to configure the logger' )
+    parser.add_argument( 'config_file', help='.json file required to configure the logger' )
     args = parser.parse_args()
     
-    with open(args.inifile) as cfg_fl:
+    with open(args.config_file) as cfg_fl:
         config = json.load(cfg_fl)
 
     # need to have a project name and it can't be empty
