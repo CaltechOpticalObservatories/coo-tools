@@ -49,6 +49,9 @@ import os
 import signal
 import threading
 import numpy
+from pathlib import Path
+
+SRC_PATH = os.path.dirname(str(Path(__file__)))
 
 YEAR = datetime.now().strftime("%Y")
 
@@ -554,7 +557,7 @@ def check_files( logfile ):
             print( time.ctime(), "(check_files) creating %s" % html )
             index_html_outfile = open( html, 'a' )
             # the template is htmsrc
-            htmsrc = ROOTPATH + "/index-html-src.in"
+            htmsrc = SRC_PATH + "/index-html-src.in"
             if not os.path.exists( htmsrc ):
                 print( time.ctime(), "(check_files) ERROR: missing htmsrc file: ", htmsrc )
                 return False
@@ -580,7 +583,7 @@ def check_files( logfile ):
         dylink = save_path + "/dygraph-combined.js"
         if not os.path.exists(dylink):
             # The actual Javascript is here
-            dysrc  = ROOTPATH + "/dygraph-combined.js"
+            dysrc  = SRC_PATH + "/dygraph-combined.js"
             os.symlink(dysrc, dylink)
             print( time.ctime(), "(check_files) creating symlink %s -> %s" % (dylink, dysrc) )
 
@@ -777,11 +780,11 @@ if __name__ == "__main__":
     #
     if 'name' in config:
         if not config['name']:
-            print( time.ctime(), "(main) ERROR: 'name' in %s cannot be empty!" % args.inifile )
+            print( time.ctime(), "(main) ERROR: 'name' in %s cannot be empty!" % args.config_file )
             sys.exit(1)
         project_name = config['name']
     else:
-        print( time.ctime(), "(main) ERROR: %s missing config key 'name'" % args.inifile )
+        print( time.ctime(), "(main) ERROR: %s missing config key 'name'" % args.config_file )
         sys.exit(1)
         
      
@@ -789,66 +792,65 @@ if __name__ == "__main__":
     #
     if 'logroot' in config:
         if not config['logroot']:
-            print( time.ctime(), "(main) ERROR: 'logroot' in %s cannot be empty!" % args.inifile )
+            print( time.ctime(), "(main) ERROR: 'logroot' in %s cannot be empty!" % args.config_file )
             sys.exit(1)
     else:
-        print( time.ctime(), "(main) ERROR: %s missing config key 'logroot'" % args.inifile )
+        print( time.ctime(), "(main) ERROR: %s missing config key 'logroot'" % args.config_file )
         sys.exit(1)
         
 
-    # get the temperature host and port numbers from the ini file
+    # get the temperature host and port numbers from the config file
     #
     if 'temphost' in config:
-        logtemps = True
+        config['logtemps'] = True
         print( time.ctime(), "(main) found temphost, logtemps is enabled" )
         if 'tempport' not in config:
             print( time.ctime(), "(main) ERROR: 'tempport' missing!")
             sys.exit(1)
     else:
-        logtemps = False
+        config['logtemps'] = False
         print( time.ctime(), "(main) missing temphost, logtemps is disabled" )
 
-    # get the pressure host and port numbers from the ini file
+    # get the pressure host and port numbers from the config file
     #
     if 'presshost' in config:
-        islogpress = True
+        config['logpress'] = True
         print( time.ctime(), "(main) found presshost, logpress is enabled" )
         if 'pressport' not in config:
             print( time.ctime(), "(main) ERROR: 'pressport' missing!")
             sys.exit(1)
     else:
-        islogpress = False
+        config['logpress'] = False
         print( time.ctime(), "(main) missing presshost, logpress is disabled" )
 
     # If we're logging temperatures then get everything needed for that
     #
-    if logtemps:
+    if config['logtemps']:
 
-        # get the temperature channels to log from the ini file
+        # get the temperature channels to log from the config file
         #
         if 'tempchans' in config:
             temp_channels = config['tempchans'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'tempchans'" % args.inifile )
+            print( time.ctime(), "(main) ERROR: %s missing config key 'tempchans'" % args.config_file )
             sys.exit(1)
         if temp_channels == ['']:
             temp_channels=[]          # if the input is blank, make sure it is length 0
 
-        # get the temperature channel labels from the ini file
+        # get the temperature channel labels from the config file
         #
         if 'templabels' in config:
             temp_labels = config['templabels'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'templabels'" % args.inifile )
+            print( time.ctime(), "(main) ERROR: %s missing config key 'templabels'" % args.config_file )
             sys.exit(1)
         if temp_labels == ['']:
             temp_labels=[]            # if the input is blank, make sure it is length 0
 
-        header_list = []
-
         # must have the same number of temp labels as temp channels
         #
         if len(temp_channels) == len(temp_labels):
+            header_list = []
             for chan, label in zip(temp_channels, temp_labels):
                 header_list.append( chan+":"+label )
             temp_header = ', '.join( header_list )
@@ -858,22 +860,22 @@ if __name__ == "__main__":
                    ( len(temp_channels), len(temp_labels) ) )
             sys.exit(1)
 
-        # get the heater channels to log from the ini file
+        # get the heater channels to log from the config file
         #
         if 'heaterchans' in config:
             heater_channels = config['heaterchans'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'heaterchans'" % args.inifile )
+            print( time.ctime(), "(main) ERROR: %s missing config key 'heaterchans'" % args.config_file )
             sys.exit(1)
         if heater_channels == ['']:
             heater_channels=[]        # if the input is blank, make sure it is length 0
 
-        # get the heater channel labels from the ini file
+        # get the heater channel labels from the config file
         #
         if 'heaterlabels' in config:
             heater_labels = config['heaterlabels'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'heaterlabels'" % args.inifile )
+            print( time.ctime(), "(main) ERROR: %s missing config key 'heaterlabels'" % args.config_file )
             sys.exit(1)
         if heater_labels == ['']:
             heater_labels=[]          # if the input is blank, make sure it is length 0
@@ -881,6 +883,7 @@ if __name__ == "__main__":
         # must have the same number of heater labels as heater channels
         #
         if len(heater_channels) == len(heater_labels):
+            header_list = []
             for chan, label in zip(heater_channels, heater_labels):
                 header_list.append( chan+":"+label )
             temp_header += ', '.join( header_list )
@@ -892,15 +895,51 @@ if __name__ == "__main__":
                    ( len(heater_channels), len(heater_labels) ) )
             sys.exit(1)
 
-        # get temperature logging rate from ini file
+        # get temperature logging rate from config file
         #
         if 'temprate' not in config:
             config['temprate'] = 60
 
     # If we're logging pressure then get everything needed for that
     #
-    if islogpress:
-        # get pressure logging rate from ini file
+    if config['logpress']:
+    
+        # get the pressure channels to log from the config file
+        #
+        if 'presschans' in config:
+            press_channels = config['presschans']
+        else:
+            print( time.ctime(), "(main) ERROR: %s missing config key 'presschans'" % args.config_file )
+            sys.exit(1)
+        if len(press_channels) <= 0:
+            print( time.ctime(), "(main) ERROR: 'presschans' must have at least one channel" )
+            sys.exit(1)
+
+        # get the pressure channel labels from the config file
+        #
+        if 'presslabels' in config:
+            press_labels = config['presslabels'].split(',')
+        else:
+            print( time.ctime(), "(main) ERROR: %s missing config key 'presslabels'" % args.config_file )
+            sys.exit(1)
+        if press_labels == ['']:
+            press_labels=[]            # if the input is blank, make sure it is length 0
+
+        # must have the same number of temp labels as temp channels
+        #
+        if len(press_channels) == len(press_labels):
+            header_list = []
+            for chan, label in zip(press_channels, press_labels):
+                header_list.append( chan+":"+label )
+            press_header = ', '.join( header_list )
+            config['press_header'] = press_header
+        else:
+            print( time.ctime(), "(main) ERROR: must have same number of presschans (%d) as presslabels (%d)" % 
+                   ( len(press_channels), len(press_labels) ) )
+            sys.exit(1)
+
+
+        # get pressure logging rate from config file
         #
         if 'pressrate' not in config:
             config['pressrate'] = 60
@@ -916,10 +955,10 @@ if __name__ == "__main__":
 
     # if we have everything needed for temperature logging then start a thread
     #
-    if logtemps:
+    if config['logtemps']:
         print( time.ctime(), "(main) starting temperature logging for %s" % config['name'] )
         temp_logging = Job( interval=timedelta(seconds=config['temprate']), execute=logtemp,
-        **config )
+                            **config )
         temp_logging.start()
         jobs_started += 1
     else:
@@ -930,9 +969,10 @@ if __name__ == "__main__":
 
     # if we have everything needed for pressure logging then start a thread
     #
-    if islogpress and press_host and press_port and press_rate:
+    if config['logpress']:
         print( time.ctime(), "(main) starting pressure logging" )
-        press_logging = Job( interval=timedelta(seconds=press_rate), execute=logpress, **config )
+        press_logging = Job( interval=timedelta(seconds=config['pressrate']), execute=logpress,
+                            **config )
         press_logging.start()
         jobs_started += 1
     else:

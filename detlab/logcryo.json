@@ -3,6 +3,8 @@
     "logroot": "/home/detlab/public_html",
     "presshost": "131.214.200.34",
     "pressport": 8000,
+    "pressmodel": "TPG366",
     "pressrate": 60,
-    "pressnports": 6
+    "presschans": [1],
+    "presslabels": "Cryo"
 }
