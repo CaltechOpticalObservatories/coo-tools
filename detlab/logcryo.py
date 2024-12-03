@@ -640,10 +640,10 @@ def logpress(**pconfig):
                 tpgpressfile = open(logfile, 'a')
 
                 if write_tpg_header:
-                    hdr = 'datetime, ' + pconfig['pressheader']
+                    hdr = 'datetime, ' + pconfig['presshdrs']
                     tpgpressfile.write( hdr + '\n' )
 
-                list_format = pconfig['press_format'] + '\n'
+                list_format = '{:}' + pconfig['pressfmts'] + '\n'
 
                 tpgpressfile.write( list_format.format(*tpgpress) )
                 tpgpressfile.close()
@@ -837,76 +837,34 @@ if __name__ == "__main__":
         if temp_channels == ['']:
             temp_channels=[]          # if the input is blank, make sure it is length 0
 
-        config['temp_channels'] = temp_channels
-
-        # get the temperature channel labels from the config file
+        # get the temperature channel headers from the config file
         #
-        if 'temphdr' in config:
-            temp_labels = config['temphdr'].split(',')
+        if 'temphdrs' in config:
+            temp_hdrs = config['temphdrs'].split(',')
         else:
             print( time.ctime(), "(main) ERROR: %s missing config key "
-                                 "'templabels'" % args.config_file )
+                                 "'temphdrs'" % args.config_file )
             sys.exit(1)
-        if temp_labels == ['']:
-            temp_labels=[]            # if the input is blank, make sure it is length 0
+        if temp_hdrs == ['']:
+            temp_hdrs=[]            # if the input is blank, make sure it is length 0
 
-        # must have the same number of temp labels as temp channels
+                # get the temperature channel formats from the config file
         #
-        if len(temp_channels) == len(temp_labels):
-            header_list = []
-            format_list = "{:}"
-            for chan, label in zip(temp_channels, temp_labels):
-                header_list.append( chan+":"+label )
-                format_list += TEMP_FMT
-            temp_header = ', '.join( header_list )
-            config['temp_header'] = temp_header
-            config['temp_format'] = format_list
+        if 'tempfmts' in config:
+            temp_fmts = config['tempfmts'].split(',')
         else:
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'tempfmts'" % args.config_file )
+            sys.exit(1)
+        if temp_fmts == ['']:
+            temp_fmts=[]            # if the input is blank, make sure it is length 0
+
+        # must have the same number of temp headers, temp channels, and temp formats
+        #
+        if len(temp_channels) != len(temp_hdrs) or len(temp_channels) != len(temp_fmts):
             print( time.ctime(), "(main) ERROR: must have same number of "
-                                 "tempchans (%d) as templabels (%d)" %
-                   ( len(temp_channels), len(temp_labels) ) )
-            sys.exit(1)
-
-        # get the heater channels to log from the config file
-        #
-        if 'heaterchans' in config:
-            heater_channels = config['heaterchans'].split(',')
-        else:
-            print( time.ctime(), "(main) ERROR: %s missing config key "
-                                 "'heaterchans'" % args.config_file )
-            sys.exit(1)
-        if heater_channels == ['']:
-            heater_channels=[]        # if the input is blank, make sure it is length 0
-
-        config['heater_channels'] = heater_channels
-
-        # get the heater channel labels from the config file
-        #
-        if 'heaterlabels' in config:
-            heater_labels = config['heaterlabels'].split(',')
-        else:
-            print( time.ctime(), "(main) ERROR: %s missing config key "
-                                 "'heaterlabels'" % args.config_file )
-            sys.exit(1)
-        if heater_labels == ['']:
-            heater_labels=[]          # if the input is blank, make sure it is length 0
-
-        # must have the same number of heater labels as heater channels
-        #
-        if len(heater_channels) == len(heater_labels):
-            header_list = []
-            for chan, label in zip(heater_channels, heater_labels):
-                header_list.append( chan+":"+label )
-                format_list += TEMP_FMT
-            temp_header += ', '.join( header_list )
-            config['temp_header'] = temp_header
-            config['heater_header'] = header_list
-            config['temp_format'] = format_list
-        else:
-            print( time.ctime(),
-                   "(main) ERROR: must have same number of heaterchans (%d) as "
-                   "heaterlabels (%d)" % \
-                   ( len(heater_channels), len(heater_labels) ) )
+                                 "tempchans (%d), temphdrs (%d) and tempfmts (%d)" %
+                   ( len(temp_channels), len(temp_labels), len(temp_fmts) ) )
             sys.exit(1)
 
         # get temperature logging rate from config file
@@ -930,31 +888,34 @@ if __name__ == "__main__":
             print( time.ctime(), "(main) ERROR: 'presschans' must have at least one channel" )
             sys.exit(1)
 
-        # get the pressure channel labels from the config file
+        # get the pressure channel headers from the config file
         #
-        if 'presslabels' in config:
-            press_labels = config['presslabels'].split(',')
+        if 'presshdrs' in config:
+            press_hdrs = config['presshdrs'].split(',')
         else:
             print( time.ctime(), "(main) ERROR: %s missing config key "
-                                 "'presslabels'" % args.config_file )
+                                 "'presshdrs'" % args.config_file )
             sys.exit(1)
-        if press_labels == ['']:
-            press_labels=[]            # if the input is blank, make sure it is length 0
+        if press_hdrs == ['']:
+            press_hdrs=[]            # if the input is blank, make sure it is length 0
 
-        # must have the same number of temp labels as temp channels
+        # get the pressure channel formats from the config file
         #
-        if len(press_channels) == len(press_labels):
-            header_list = []
-            format_list = "{:}"
-            for chan, label in zip(press_channels, press_labels):
-                header_list.append( chan+":"+label )
-                format_list += PRESS_FMT
-            config['press_header'] = ', '.join( header_list )
-            config['press_format'] = format_list
+        if 'pressfmts' in config:
+            press_fmts = config['pressfmts'].split(',')
         else:
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'pressfmts'" % args.config_file )
+            sys.exit(1)
+        if press_fmts == ['']:
+            press_fmts=[]            # if the input is blank, make sure it is length 0
+
+        # must have the same number of press channels, headers, and formats
+        #
+        if len(press_channels) != len(press_hdrs) or len(press_channels) != len(press_fmts):
             print( time.ctime(), "(main) ERROR: must have same number of "
-                                 "presschans (%d) as presslabels (%d)" %
-                   ( len(press_channels), len(press_labels) ) )
+                                 "presschans (%d), presshdrs (%d), and pressfmts (%d)" %
+                   ( len(press_channels), len(press_hdrs), len(press_fmts) ) )
             sys.exit(1)
 
 
