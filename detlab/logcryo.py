@@ -48,11 +48,11 @@ from random import uniform
 import os
 import signal
 import threading
-import numpy
 from pathlib import Path
+import numpy
+from PyQt5.QtCore.QTextCodec import kwargs
 
 SRC_PATH = os.path.dirname(str(Path(__file__)))
-
 YEAR = datetime.now().strftime("%Y")
 
 # random period retry boundaries --
@@ -72,6 +72,10 @@ mutex_press = threading.Lock()
 ACK  = b'\x06\x0d\x0a'
 NAK  = b'\x15\x0d\x0a'
 ENQ  = b'\x05'
+
+# Format strings
+TEMP_FMT = ", {:.3f}"
+PRESS_FMT = ", {:.3f}"
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -533,20 +537,16 @@ def get_press(host, port):
 # @param  logfile, name of log file (csv) that the logger will create
 # @return True on success, False on error
 # -----------------------------------------------------------------------------
-def check_files( logfile ):
-    """ Check if logfile exists """
-
-    # the directory of where data files will be saved
-    save_path = os.path.dir( logfile )
+def check_files( save_path, **fargs ):
+    """ Check if files in save_path exist """
 
     # check that all the needed support files are in place
     #
     try:
         # create the log files (and directories, if needed)
-        ldir = os.path.dirname( logfile )
-        if not os.path.exists(ldir):
-            print( time.ctime(), "(check_files) creating path %s" % ldir )
-            os.makedirs(ldir)
+        if not os.path.exists(save_path):
+            print( time.ctime(), "(check_files) creating path %s" % save_path )
+            os.makedirs(save_path)
 
         # index.html file for this particular date displays the graph of today's data
         html = save_path + "/index.html"
@@ -564,8 +564,8 @@ def check_files( logfile ):
             # a list of things to find and replace (project name and heater labels)
             findlist = [ "PROJECT", "HEATERLABELONE", "HEATERLABELTWO" ]
             # the list of things to replace them with
-            replacelist = [ project_name.upper() ]
-            replacelist += heater_labels
+            replacelist = [ fargs['name'].upper() ]
+            replacelist += [ fargs['heater_header'] ]
             with open( htmsrc ) as inputfile:
                 # read a line at a time from "htmsrc" file
                 for line in inputfile:
@@ -602,15 +602,15 @@ def check_files( logfile ):
 #
 # This function is called by the scheduler.
 # -----------------------------------------------------------------------------
-def logpress(**kwargs):
-    press_host=kwargs['presshost']
-    press_port=kwargs['pressport']
-    project_path=os.path.join(kwargs['logroot'], kwargs['name'])
+def logpress(**pconfig):
+    press_host=pconfig['presshost']
+    press_port=pconfig['pressport']
+    project_path=os.path.join(pconfig['logroot'], pconfig['name'])
 
     # create log file and needed paths if necessary
     save_path = project_path + "/" + YEAR + "/" + datetime.now().strftime("%Y%m%d")
     logfile = save_path + "/press.csv"
-    if not check_files( logfile ):
+    if not check_files( save_path, **pconfig ):
         print( time.ctime(), "(logpress) ERROR setting up file structure" )
         return
 
@@ -635,16 +635,17 @@ def logpress(**kwargs):
             break
         if tpgpress != 'BSY':
             try:
-                write_tpg_header = os.path.exists(logfile)
+                write_tpg_header = not os.path.exists(logfile)
 
                 tpgpressfile = open(logfile, 'a')
 
                 if write_tpg_header:
-                    tpgpressfile.write( 'datetime, pressure\n' )
+                    hdr = 'datetime, ' + pconfig['pressheader']
+                    tpgpressfile.write( hdr + '\n' )
 
-                format_list = '{:}, {:.4f}\n'
+                list_format = pconfig['press_format'] + '\n'
 
-                tpgpressfile.write( format_list.format(*tpgpress) )
+                tpgpressfile.write( list_format.format(*tpgpress) )
                 tpgpressfile.close()
                 break
 
@@ -681,15 +682,19 @@ def logpress(**kwargs):
 #
 # This function is called by the scheduler.
 # -----------------------------------------------------------------------------
-def logtemp():
+def logtemp(**tconfig):
     """ Log temperatures """
-
+    temp_host = tconfig['temphost']
+    temp_port = tconfig['tempport']
+    temp_chans = tconfig['temp_channels']
+    heater_chans = tconfig['heater_channels']
+    project_path = os.path.join(tconfig['logroot'], tconfig['name'])
     print( time.ctime(), "(logtemp) starting" )
 
     # create log file and needed paths if necessary
     save_path = project_path + "/" + YEAR + "/" + datetime.now().strftime("%Y%m%d")
     logfile = save_path + "/temps.csv"
-    if not check_files( logfile ):
+    if not check_files( save_path, **tconfig ):
         print( time.ctime(), "(logtemp) ERROR setting up file structure" )
         return
 
@@ -698,8 +703,8 @@ def logtemp():
     while retry_count < MAX_RETRIES:
         print( time.ctime(),
                "(logtemp) calling get_temps(%s, %s, %s, %s)" %
-               ( temp_host, temp_port, temp_channels, heater_channels ) )
-        lkstemps = get_temps(temp_host, temp_port, temp_channels, heater_channels)
+               ( temp_host, temp_port, temp_chans, heater_chans ) )
+        lkstemps = get_temps(temp_host, temp_port, temp_chans, heater_chans)
         print( time.ctime(), "(logtemp) lkstemps=", lkstemps )
 
         lkstempfile = None
@@ -711,21 +716,17 @@ def logtemp():
             break
         if lkstemps != 'BSY':
             try:
-                write_lks_header = os.path.exists(logfile)
+                write_lks_header = not os.path.exists(logfile)
 
                 lkstempfile = open(logfile, 'a')
 
                 if write_lks_header:
-                    lkstempfile.write( 'datetime, ' + temp_header + '\n' )
+                    hdr = 'datetime, ' + tconfig['tempheader']
+                    lkstempfile.write(hdr + '\n')
 
-                format_list = '{:}'
-                for i in temp_channels:
-                    format_list += ', {:.3f}'
-                for i in heater_channels:
-                    format_list += ', {:.3f}'
-                format_list += '\n'
+                list_format = tconfig['temp_format'] + '\n'
 
-                lkstempfile.write( format_list.format(*lkstemps) )
+                lkstempfile.write( list_format.format(*lkstemps) )
                 lkstempfile.close()
                 break
 
@@ -772,7 +773,7 @@ if __name__ == "__main__":
     parser=argparse.ArgumentParser(description='logger')
     parser.add_argument( 'config_file', help='.json file required to configure the logger' )
     args = parser.parse_args()
-    
+
     with open(args.config_file) as cfg_fl:
         config = json.load(cfg_fl)
 
@@ -782,22 +783,20 @@ if __name__ == "__main__":
         if not config['name']:
             print( time.ctime(), "(main) ERROR: 'name' in %s cannot be empty!" % args.config_file )
             sys.exit(1)
-        project_name = config['name']
     else:
         print( time.ctime(), "(main) ERROR: %s missing config key 'name'" % args.config_file )
         sys.exit(1)
-        
-     
+
     # need to have a log root dir and it can't be empty
     #
     if 'logroot' in config:
         if not config['logroot']:
-            print( time.ctime(), "(main) ERROR: 'logroot' in %s cannot be empty!" % args.config_file )
+            print( time.ctime(), "(main) ERROR: 'logroot' in %s cannot be empty!" %
+                   args.config_file )
             sys.exit(1)
     else:
         print( time.ctime(), "(main) ERROR: %s missing config key 'logroot'" % args.config_file )
         sys.exit(1)
-        
 
     # get the temperature host and port numbers from the config file
     #
@@ -832,17 +831,21 @@ if __name__ == "__main__":
         if 'tempchans' in config:
             temp_channels = config['tempchans'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'tempchans'" % args.config_file )
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'tempchans'" % args.config_file )
             sys.exit(1)
         if temp_channels == ['']:
             temp_channels=[]          # if the input is blank, make sure it is length 0
 
+        config['temp_channels'] = temp_channels
+
         # get the temperature channel labels from the config file
         #
-        if 'templabels' in config:
-            temp_labels = config['templabels'].split(',')
+        if 'temphdr' in config:
+            temp_labels = config['temphdr'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'templabels'" % args.config_file )
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'templabels'" % args.config_file )
             sys.exit(1)
         if temp_labels == ['']:
             temp_labels=[]            # if the input is blank, make sure it is length 0
@@ -851,12 +854,16 @@ if __name__ == "__main__":
         #
         if len(temp_channels) == len(temp_labels):
             header_list = []
+            format_list = "{:}"
             for chan, label in zip(temp_channels, temp_labels):
                 header_list.append( chan+":"+label )
+                format_list += TEMP_FMT
             temp_header = ', '.join( header_list )
             config['temp_header'] = temp_header
+            config['temp_format'] = format_list
         else:
-            print( time.ctime(), "(main) ERROR: must have same number of tempchans (%d) as templabels (%d)" % 
+            print( time.ctime(), "(main) ERROR: must have same number of "
+                                 "tempchans (%d) as templabels (%d)" %
                    ( len(temp_channels), len(temp_labels) ) )
             sys.exit(1)
 
@@ -865,17 +872,21 @@ if __name__ == "__main__":
         if 'heaterchans' in config:
             heater_channels = config['heaterchans'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'heaterchans'" % args.config_file )
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'heaterchans'" % args.config_file )
             sys.exit(1)
         if heater_channels == ['']:
             heater_channels=[]        # if the input is blank, make sure it is length 0
+
+        config['heater_channels'] = heater_channels
 
         # get the heater channel labels from the config file
         #
         if 'heaterlabels' in config:
             heater_labels = config['heaterlabels'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'heaterlabels'" % args.config_file )
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'heaterlabels'" % args.config_file )
             sys.exit(1)
         if heater_labels == ['']:
             heater_labels=[]          # if the input is blank, make sure it is length 0
@@ -886,8 +897,11 @@ if __name__ == "__main__":
             header_list = []
             for chan, label in zip(heater_channels, heater_labels):
                 header_list.append( chan+":"+label )
+                format_list += TEMP_FMT
             temp_header += ', '.join( header_list )
             config['temp_header'] = temp_header
+            config['heater_header'] = header_list
+            config['temp_format'] = format_list
         else:
             print( time.ctime(),
                    "(main) ERROR: must have same number of heaterchans (%d) as "
@@ -903,13 +917,14 @@ if __name__ == "__main__":
     # If we're logging pressure then get everything needed for that
     #
     if config['logpress']:
-    
+
         # get the pressure channels to log from the config file
         #
         if 'presschans' in config:
             press_channels = config['presschans']
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'presschans'" % args.config_file )
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'presschans'" % args.config_file )
             sys.exit(1)
         if len(press_channels) <= 0:
             print( time.ctime(), "(main) ERROR: 'presschans' must have at least one channel" )
@@ -920,7 +935,8 @@ if __name__ == "__main__":
         if 'presslabels' in config:
             press_labels = config['presslabels'].split(',')
         else:
-            print( time.ctime(), "(main) ERROR: %s missing config key 'presslabels'" % args.config_file )
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'presslabels'" % args.config_file )
             sys.exit(1)
         if press_labels == ['']:
             press_labels=[]            # if the input is blank, make sure it is length 0
@@ -929,12 +945,15 @@ if __name__ == "__main__":
         #
         if len(press_channels) == len(press_labels):
             header_list = []
+            format_list = "{:}"
             for chan, label in zip(press_channels, press_labels):
                 header_list.append( chan+":"+label )
-            press_header = ', '.join( header_list )
-            config['press_header'] = press_header
+                format_list += PRESS_FMT
+            config['press_header'] = ', '.join( header_list )
+            config['press_format'] = format_list
         else:
-            print( time.ctime(), "(main) ERROR: must have same number of presschans (%d) as presslabels (%d)" % 
+            print( time.ctime(), "(main) ERROR: must have same number of "
+                                 "presschans (%d) as presslabels (%d)" %
                    ( len(press_channels), len(press_labels) ) )
             sys.exit(1)
 
@@ -945,11 +964,11 @@ if __name__ == "__main__":
             config['pressrate'] = 60
 
     # create project directory if needed
-    project_path = os.path.join(config['logroot'], config['name'])
-    if not os.path.exists( project_path ):
-        print( time.ctime(), "(main) creating ", project_path )
+    project_dir = os.path.join(config['logroot'], config['name'])
+    if not os.path.exists( project_dir ):
+        print( time.ctime(), "(main) creating ", project_dir )
         try:
-            os.mkdir( project_path )
+            os.mkdir( project_dir )
         except Exception as e:
             print( time.ctime(), "(main) exception creating directory:", str(e) )
 

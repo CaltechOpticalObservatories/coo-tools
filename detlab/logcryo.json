@@ -1,10 +1,16 @@
 {
     "name": "deimos",
     "logroot": "/home/detlab/public_html",
+    "temphost": "lakeshore",
+    "tempport": 7777,
+    "temprate": 60,
+    "tempchans": "A,B,C,D,1,2",
+    "temphdr": "CCD, CP1, CF1, CF2, HTR1, HTR2",
+    "tempfmt": "{:.4f}, {:.4f}, {:.3f}, {:.3f}, {:.2f}, {:.2f}",
     "presshost": "131.214.200.34",
     "pressport": 8000,
     "pressmodel": "TPG366",
     "pressrate": 60,
     "presschans": [1],
-    "presslabels": "Cryo"
+    "presshdr": "pressure"
 }
