@@ -15,21 +15,25 @@ HOW TO USE:
 {
     "name": <project name>
     "logroot": <logging root directory>
-    "temphost": <hostname or IP address for temperature source>
+    "temphost": <hostname or IP address for temperature source (str)>
                 (i.e. Lakeshore, terminal server, etc.)
-    "tempport": <port number for temperature server>
-    "temprate": <rate in seconds at which to log temperature>
-    "tempchans": <comma separated list of Lakeshore channels>
-                (i.e. A,B,C1, etc.)
-    "templabels": <comma separated list of labels for temperature channels>
-                (i.e., Cold Plate, Radiation Shield, etc.)
-    "heaterchans": <comma separated list of heater channels>
-    "heaterlabels": <comma separated list of heater labels>
-    "presshost": <hostname or IP for pressure server>
-    "pressport": <port number of pressure server>
-    "pressrate": <rate in seconds at which to log pressure>
-    "presschans": <comma separated list of pressure gauge channels>
-    "presslabels": <comma separated list of labels for pressure channels>
+    "tempport": <port number for temperature server (int)>
+    "temprate": <rate in seconds at which to log temperature (int)>
+    "tempchans": <comma separated list of Lakeshore channels, including heaters (str)>
+                (e.g. A,B,C1,1,2 etc.)
+    "temphdrs": <comma separated list of labels for temperature channels (str)>
+                (e.g. A:CP, B:RS, 1:HTRCCD etc.)
+    "tempfmts": <comma separated format strings for temperature channels (str)>
+                (e.g. {:.3f}, {:.4f} etc.) 
+    "presshost": <hostname or IP for pressure server (str)>
+    "pressport": <port number of pressure server (int)>
+    "pressrate": <rate in seconds at which to log pressure (int)>
+    "presschans": <integer list of pressure gauge channels (int list)>
+                (e.g. [1,3,5])
+    "presshdrs": <comma separated list of labels for pressure channels (str)>
+                (e.g. 1:DWR, 3:CHM, 5:PRT)
+    "pressfmts": <comma separated format strings for pressure channels (str)>
+                (e.g. {:.3f}, {:.4f} etc.)
 }
 
 2. run this script with the .json file as an argument,
@@ -73,9 +77,6 @@ ACK  = b'\x06\x0d\x0a'
 NAK  = b'\x15\x0d\x0a'
 ENQ  = b'\x05'
 
-# Format strings
-TEMP_FMT = ", {:.3f}"
-PRESS_FMT = ", {:.3f}"
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -183,7 +184,7 @@ def read_tpg( sock ):
 # @param  host
 # @param  port
 # -----------------------------------------------------------------------------
-def sen_onoff(host, port,
+def sen_onoff(**hconfig,
               onoff1=0, onoff2=0, onoff3=0, onoff4=0, onoff5=0, onoff6=0):
     """ Set sensor state
     Inputs:
@@ -201,7 +202,7 @@ def sen_onoff(host, port,
     # acquire mutex lock and open socket
     mutex_press.acquire( blocking=True, timeout=MUTEX_TIMEOUT )
 
-    sock = open_socket(host, port)
+    sock = open_socket(hconfig['presshost'], hconfig['pressport'])
 
     if not sock:
         mutex_press.release()
@@ -257,7 +258,7 @@ def sen_onoff(host, port,
 # @param  host
 # @param  port
 # -----------------------------------------------------------------------------
-def sen_stat(host, port):
+def sen_stat(**hconfig):
     """ Get sensor state
 
     Return:
@@ -274,7 +275,7 @@ def sen_stat(host, port):
     # acquire mutex lock and open socket
     mutex_press.acquire( blocking=True, timeout=MUTEX_TIMEOUT )
 
-    sock = open_socket(host, port)
+    sock = open_socket(hconfig['presshost'], hconfig['pressport'])
 
     if not sock:
         mutex_press.release()
@@ -325,7 +326,7 @@ def sen_stat(host, port):
 # @param  host
 # @param  port
 # -----------------------------------------------------------------------------
-def get_tpg(host, port):
+def get_tpg(**hconfig):
     """ Get TPG reading """
 
     # don't let another thread run this at the same time
@@ -336,7 +337,7 @@ def get_tpg(host, port):
     # acquire mutex lock and open socket
     mutex_press.acquire( blocking=True, timeout=MUTEX_TIMEOUT )
 
-    sock = open_socket(host, port)
+    sock = open_socket(hconfig['presshost'], hconfig['pressport'])
 
     if not sock:
         mutex_press.release()
@@ -396,12 +397,10 @@ def get_tpg(host, port):
 # return list is [ <date>, <ch1>, <ch2>, ..., <heater1>, ... ]
 #
 # -----------------------------------------------------------------------------
-def get_temps(host, port, channels, heaters=None):
+def get_temps(**hconfig):
     """ Get temperatures """
 
     # don't let another thread run this at the same time
-    if heaters is None:
-        heaters = []
     if mutex_temp.locked():
         print( time.ctime(), "(get_temps) ERROR: mutex locked" )
         return 'BSY'
@@ -409,7 +408,7 @@ def get_temps(host, port, channels, heaters=None):
     # acquire mutex lock and open socket
     mutex_temp.acquire( blocking=True, timeout=MUTEX_TIMEOUT )
 
-    sock = open_socket(host, port)
+    sock = open_socket(hconfig['temphost'], hconfig['tempport'])
 
     if not sock:
         mutex_temp.release()
@@ -422,7 +421,7 @@ def get_temps(host, port, channels, heaters=None):
     # first the date is added, then each channel requested in the order requested
 
     # add the temperature and heaters into one list
-    chanlist = channels + heaters
+    chanlist = hconfig['tempchans'].split(',')
 
     # read all requested channels
     for chit in chanlist:
@@ -493,12 +492,12 @@ def get_temps(host, port, channels, heaters=None):
 #
 # This function is called by the scheduler.
 # -----------------------------------------------------------------------------
-def get_press(host, port):
+def get_press(**hconfig):
     """ Get pressures """
 
     mutex_press.acquire()
 
-    sock = open_socket(host, port)
+    sock = open_socket(hconfig['presshost'], hconfig['pressport'])
 
     if not sock:
         return 'ERR'
@@ -603,8 +602,8 @@ def check_files( save_path, **fargs ):
 # This function is called by the scheduler.
 # -----------------------------------------------------------------------------
 def logpress(**pconfig):
-    press_host=pconfig['presshost']
-    press_port=pconfig['pressport']
+    """ Log Pressure """
+ 
     project_path=os.path.join(pconfig['logroot'], pconfig['name'])
 
     # create log file and needed paths if necessary
@@ -617,13 +616,8 @@ def logpress(**pconfig):
     retry_count = 0
     # keep trying until not busy, or give up on error, until MAX_RETRIES
     while retry_count < MAX_RETRIES:
-        print(time.ctime(), "(logpress) calling sen_stat(%s, %d)" % (press_host, press_port) )
-        senstat = sen_stat( press_host, press_port )
-        if senstat[1] == 0:
-            senstat = sen_onoff(press_host, press_port, onoff1=2)
-        print(senstat)
-        print( time.ctime(), "(logpress) calling get_tpg(%s, %d)" % ( press_host, press_port ) )
-        tpgpress = get_tpg( press_host, press_port )
+        print( time.ctime(), "(logpress) calling get_tpg(**pconfig)" )
+        tpgpress = get_tpg( **pconfig )
         print(tpgpress)
 
         tpgpressfile = None
@@ -684,10 +678,7 @@ def logpress(**pconfig):
 # -----------------------------------------------------------------------------
 def logtemp(**tconfig):
     """ Log temperatures """
-    temp_host = tconfig['temphost']
-    temp_port = tconfig['tempport']
-    temp_chans = tconfig['temp_channels']
-    heater_chans = tconfig['heater_channels']
+
     project_path = os.path.join(tconfig['logroot'], tconfig['name'])
     print( time.ctime(), "(logtemp) starting" )
 
@@ -702,9 +693,8 @@ def logtemp(**tconfig):
     # keep trying until not busy, or give up on error, until MAX_RETRIES
     while retry_count < MAX_RETRIES:
         print( time.ctime(),
-               "(logtemp) calling get_temps(%s, %s, %s, %s)" %
-               ( temp_host, temp_port, temp_chans, heater_chans ) )
-        lkstemps = get_temps(temp_host, temp_port, temp_chans, heater_chans)
+               "(logtemp) calling get_temps(**tconfig)" )
+        lkstemps = get_temps(**tconfig)
         print( time.ctime(), "(logtemp) lkstemps=", lkstemps )
 
         lkstempfile = None
@@ -721,10 +711,10 @@ def logtemp(**tconfig):
                 lkstempfile = open(logfile, 'a')
 
                 if write_lks_header:
-                    hdr = 'datetime, ' + tconfig['tempheader']
+                    hdr = 'datetime, ' + tconfig['temphdrs']
                     lkstempfile.write(hdr + '\n')
 
-                list_format = tconfig['temp_format'] + '\n'
+                list_format = '{:}, ' + tconfig['tempfmts'] + '\n'
 
                 lkstempfile.write( list_format.format(*lkstemps) )
                 lkstempfile.close()
@@ -945,7 +935,7 @@ if __name__ == "__main__":
         temp_logging = False
         print( time.ctime(),
                "(main) temperature logging disabled: missing one or more of "
-               "temphost, tempport, temprate, (tempchans | heaterchans)" )
+               "temphost, tempport, temprate, tempchans" )
 
     # if we have everything needed for pressure logging then start a thread
     #
@@ -959,7 +949,7 @@ if __name__ == "__main__":
         press_logging = False
         print( time.ctime(),
                "(main) pressure logging disabled: missing one or more of "
-               "presshost, pressport, pressrate" )
+               "presshost, pressport, pressrate, presschans" )
 
     # nothing to do
     #
