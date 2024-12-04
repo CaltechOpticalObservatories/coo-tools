@@ -11,7 +11,8 @@ HOW TO USE:
 
 1. edit logcryo.json file (see format below) to define the project name,
         logging root, controller hosts, channel info, etc.
-.json file requirements:
+
+*.json file requirements:
 {
     "name": <project name>
     "logroot": <logging root directory>
@@ -24,7 +25,7 @@ HOW TO USE:
     "temphdrs": <comma separated list of labels for temperature channels (str)>
                 (e.g. A:CP, B:RS, 1:HTRCCD etc.)
     "tempfmts": <comma separated format strings for temperature channels (str)>
-                (e.g. {:.3f}, {:.4f} etc.) 
+                (e.g. {:.3f}, {:.4f} etc.)
     "presshost": <hostname or IP for pressure server (str)>
     "pressport": <port number of pressure server (int)>
     "pressrate": <rate in seconds at which to log pressure (int)>
@@ -54,7 +55,6 @@ import signal
 import threading
 from pathlib import Path
 import numpy
-from PyQt5.QtCore.QTextCodec import kwargs
 
 SRC_PATH = os.path.dirname(str(Path(__file__)))
 YEAR = datetime.now().strftime("%Y")
@@ -77,7 +77,6 @@ ACK  = b'\x06\x0d\x0a'
 NAK  = b'\x15\x0d\x0a'
 ENQ  = b'\x05'
 
-
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 class ProgramKilled( Exception ):
@@ -92,6 +91,8 @@ class ProgramKilled( Exception ):
 # -----------------------------------------------------------------------------
 def signal_handler( signum, frame ):
     """ Signal handler """
+    print(f"Signal handler called with signal {signum} received")
+    _ = frame
     raise ProgramKilled
 
 # -----------------------------------------------------------------------------
@@ -184,16 +185,32 @@ def read_tpg( sock ):
 # @param  host
 # @param  port
 # -----------------------------------------------------------------------------
-def sen_onoff(**hconfig,
-              onoff1=0, onoff2=0, onoff3=0, onoff4=0, onoff5=0, onoff6=0):
+def sen_onoff(chan, onoff, **hconfig):
     """ Set sensor state
     Inputs:
+        chan: Pressure controller sensor channel number (int)
+        onoff: True to turn on, False to turn off
+        **hconfig: Hardware configuration
+
+        Returns for each channel:
         0 - No status change
         1 = Turn gauge off
         2 = Turn gauge on
 
     """
+    if chan in hconfig['presschans']:
+        print( time.ctime(), "Channel not configures: %d" % chan )
+        return 'ERR'
 
+    onoff_dict = {}
+    for ichan in range( 1, 7 ):
+        if chan == ichan:
+            if onoff:
+                onoff_dict[ichan] = 2
+            else:
+                onoff_dict[ichan] = 1
+        else:
+            onoff_dict[ichan] = 0
     # don't let another thread run this at the same time
     if mutex_press.locked():
         print( time.ctime(), "(sen_onoff) ERROR: mutex locked" )
@@ -216,7 +233,9 @@ def sen_onoff(**hconfig,
 
     try:
         # send command to set state of sensors
-        cmd = b'SEN,%d,%d,%d,%d,%d,%d\r\n' % (onoff1, onoff2, onoff3, onoff4, onoff5, onoff6)
+        cmd = b'SEN,%d,%d,%d,%d,%d,%d\r\n' % (onoff_dict[1], onoff_dict[2],
+                                              onoff_dict[3], onoff_dict[4],
+                                              onoff_dict[5], onoff_dict[6])
         # print(cmd)
         sock.sendall( cmd )
 
@@ -240,8 +259,8 @@ def sen_onoff(**hconfig,
         for stat in ans:
             retlist.append( int( stat ))
 
-    except Exception as e:
-        print( time.ctime(), "(sen_onoff) exception: ", str(e) )
+    except Exception as ex:
+        print( time.ctime(), "(sen_onoff) exception: ", str(ex) )
         sock.close()
         mutex_press.release()
         return 'ERR'
@@ -308,8 +327,8 @@ def sen_stat(**hconfig):
         for stat in ans:
             retlist.append( int(stat) )
 
-    except Exception as e:
-        print( time.ctime(), "(sen_stat) exception: ", str(e) )
+    except Exception as ex:
+        print( time.ctime(), "(sen_stat) exception: ", str(ex) )
         sock.close()
         mutex_press.release()
         return 'ERR'
@@ -369,8 +388,8 @@ def get_tpg(**hconfig):
         retpress = float( ans[1] ) * 1000.
         retlist.append( retpress )
 
-    except Exception as e:
-        print( time.ctime(), "(get_tpg) exception: ", str(e) )
+    except Exception as ex:
+        print( time.ctime(), "(get_tpg) exception: ", str(ex) )
         sock.close()
         mutex_press.release()
         return 'ERR'
@@ -467,12 +486,12 @@ def get_temps(**hconfig):
                         datl.pop()
                         break
 
-            # done receiving data so join all of the dat[] list together, convert to float,
+            # done receiving data so join all the dat[] list together, convert to float,
             # and append it to the return value list
             retlist.append( float(''.join(datl)) )
 
-        except Exception as e:
-            print( time.ctime(), "(get_temps) exception: ", str(e) )
+        except Exception as ex:
+            print( time.ctime(), "(get_temps) exception: ", str(ex) )
             retlist.append( numpy.nan )
             sock.close()
             mutex_temp.release()
@@ -586,8 +605,8 @@ def check_files( save_path, **fargs ):
             os.symlink(dysrc, dylink)
             print( time.ctime(), "(check_files) creating symlink %s -> %s" % (dylink, dysrc) )
 
-    except Exception as e:
-        print( time.ctime(), "(check_files) exception:", str(e) )
+    except Exception as ex:
+        print( time.ctime(), "(check_files) exception:", str(ex) )
         return False
 
     return True
@@ -603,7 +622,7 @@ def check_files( save_path, **fargs ):
 # -----------------------------------------------------------------------------
 def logpress(**pconfig):
     """ Log Pressure """
- 
+
     project_path=os.path.join(pconfig['logroot'], pconfig['name'])
 
     # create log file and needed paths if necessary
@@ -643,8 +662,8 @@ def logpress(**pconfig):
                 tpgpressfile.close()
                 break
 
-            except Exception as e:
-                print( time.ctime(), "(logpress) exception:", str(e) )
+            except Exception as ex:
+                print( time.ctime(), "(logpress) exception:", str(ex) )
                 if tpgpressfile is not None:
                     tpgpressfile.close()
                 return
@@ -720,8 +739,8 @@ def logtemp(**tconfig):
                 lkstempfile.close()
                 break
 
-            except Exception as e:
-                print( time.ctime(), "(logtemp) exception:", str(e) )
+            except Exception as ex:
+                print( time.ctime(), "(logtemp) exception:", str(ex) )
                 if lkstempfile is not None:
                     lkstempfile.close()
                 return
@@ -754,8 +773,6 @@ def logtemp(**tconfig):
 # Sets up the scheduler to do the periodic logging
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-
-    jobs_started = 0
 
     signal.signal( signal.SIGTERM, signal_handler )
     signal.signal( signal.SIGINT, signal_handler )
@@ -854,7 +871,7 @@ if __name__ == "__main__":
         if len(temp_channels) != len(temp_hdrs) or len(temp_channels) != len(temp_fmts):
             print( time.ctime(), "(main) ERROR: must have same number of "
                                  "tempchans (%d), temphdrs (%d) and tempfmts (%d)" %
-                   ( len(temp_channels), len(temp_labels), len(temp_fmts) ) )
+                   ( len(temp_channels), len(temp_hdrs), len(temp_fmts) ) )
             sys.exit(1)
 
         # get temperature logging rate from config file
@@ -920,9 +937,10 @@ if __name__ == "__main__":
         print( time.ctime(), "(main) creating ", project_dir )
         try:
             os.mkdir( project_dir )
-        except Exception as e:
-            print( time.ctime(), "(main) exception creating directory:", str(e) )
+        except Exception as exc:
+            print( time.ctime(), "(main) exception creating directory:", str(exc) )
 
+    config['jobs_started'] = 0
     # if we have everything needed for temperature logging then start a thread
     #
     if config['logtemps']:
@@ -930,9 +948,9 @@ if __name__ == "__main__":
         temp_logging = Job( interval=timedelta(seconds=config['temprate']), execute=logtemp,
                             **config )
         temp_logging.start()
-        jobs_started += 1
+        config['jobs_started'] += 1
     else:
-        temp_logging = False
+        temp_logging = None
         print( time.ctime(),
                "(main) temperature logging disabled: missing one or more of "
                "temphost, tempport, temprate, tempchans" )
@@ -944,16 +962,16 @@ if __name__ == "__main__":
         press_logging = Job( interval=timedelta(seconds=config['pressrate']), execute=logpress,
                             **config )
         press_logging.start()
-        jobs_started += 1
+        config['jobs_started'] += 1
     else:
-        press_logging = False
+        press_logging = None
         print( time.ctime(),
                "(main) pressure logging disabled: missing one or more of "
                "presshost, pressport, pressrate, presschans" )
 
     # nothing to do
     #
-    if not jobs_started:
+    if not config['jobs_started']:
         print( time.ctime(), "(main) no logging started. bye!" )
         sys.exit(0)
 
@@ -964,7 +982,7 @@ if __name__ == "__main__":
             time.sleep(1)
         except ProgramKilled:
             print( time.ctime(), "(main) program killed" )
-            if temp_logging:
+            if config['logtemp']:
                 temp_logging.stop()
             if press_logging:
                 press_logging.stop()
