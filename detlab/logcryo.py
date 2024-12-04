@@ -29,6 +29,7 @@ HOW TO USE:
     "presshost": <hostname or IP for pressure server (str)>
     "pressport": <port number of pressure server (int)>
     "pressrate": <rate in seconds at which to log pressure (int)>
+    "pressnumchans": <number of pressure controller channels (int)>
     "presschans": <integer list of pressure gauge channels (int list)>
                 (e.g. [1,3,5])
     "presshdrs": <comma separated list of labels for pressure channels (str)>
@@ -199,11 +200,13 @@ def sen_onoff(chan, onoff, **hconfig):
 
     """
     if chan in hconfig['presschans']:
-        print( time.ctime(), "Channel not configures: %d" % chan )
+        print( time.ctime(), "Channel not configured: %d" % chan )
         return 'ERR'
 
+    num_chans = hconfig['pressnumchans']
+
     onoff_dict = {}
-    for ichan in range( 1, 7 ):
+    for ichan in range( 1, num_chans + 1 ):
         if chan == ichan:
             if onoff:
                 onoff_dict[ichan] = 2
@@ -233,10 +236,12 @@ def sen_onoff(chan, onoff, **hconfig):
 
     try:
         # send command to set state of sensors
-        cmd = b'SEN,%d,%d,%d,%d,%d,%d\r\n' % (onoff_dict[1], onoff_dict[2],
-                                              onoff_dict[3], onoff_dict[4],
-                                              onoff_dict[5], onoff_dict[6])
-        # print(cmd)
+        cmd = b'SEN'
+        for ichan in range(1, num_chans + 1):
+            cmd += b',%d' % onoff_dict[ichan]
+        cmd += b'\r\n'
+
+        print(cmd)
         sock.sendall( cmd )
 
         # first response is ACK
@@ -269,7 +274,6 @@ def sen_onoff(chan, onoff, **hconfig):
     mutex_press.release()
 
     return retlist
-
 
 # -----------------------------------------------------------------------------
 # @fn     sen_stat
@@ -338,7 +342,6 @@ def sen_stat(**hconfig):
 
     return retlist
 
-
 # -----------------------------------------------------------------------------
 # @fn     get_tpg
 # @brief  send command to TPG
@@ -398,7 +401,6 @@ def get_tpg(**hconfig):
     mutex_press.release()
 
     return retlist
-
 
 # -----------------------------------------------------------------------------
 # @fn     get_temps
@@ -502,7 +504,6 @@ def get_temps(**hconfig):
 
     return retlist
 
-
 # -----------------------------------------------------------------------------
 # @fn     get_press
 # @brief  send command to pressure gauge to read pressure
@@ -547,7 +548,6 @@ def get_press(**hconfig):
 
     mutex_press.release()
     return data
-
 
 # -----------------------------------------------------------------------------
 # @fn     check_files
@@ -610,7 +610,6 @@ def check_files( save_path, **fargs ):
         return False
 
     return True
-
 
 # -----------------------------------------------------------------------------
 # @fn     logpress
@@ -685,7 +684,6 @@ def logpress(**pconfig):
 
     print( time.ctime(), "(logpress) exiting" )
     return
-
 
 # -----------------------------------------------------------------------------
 # @fn     logtemp
@@ -762,7 +760,6 @@ def logtemp(**tconfig):
 
     print( time.ctime(), "(logtemp) exiting" )
     return
-
 
 # -----------------------------------------------------------------------------
 # @fn     main
@@ -883,6 +880,19 @@ if __name__ == "__main__":
     #
     if config['logpress']:
 
+        # get the pressure numbetr of channels the controller has from the config file
+        #
+        if 'pressnumchans' in config:
+            press_num_channels = config['pressnumchans']
+        else:
+            print( time.ctime(), "(main) ERROR: %s missing config key "
+                                 "'pressnumchans'" % args.config_file )
+            sys.exit(1)
+        if len(press_num_channels) <= 0:
+            print( time.ctime(), "(main) ERROR: 'pressnumchans' controller "
+                                 "must have at least one channel" )
+            sys.exit(1)
+
         # get the pressure channels to log from the config file
         #
         if 'presschans' in config:
@@ -924,7 +934,6 @@ if __name__ == "__main__":
                                  "presschans (%d), presshdrs (%d), and pressfmts (%d)" %
                    ( len(press_channels), len(press_hdrs), len(press_fmts) ) )
             sys.exit(1)
-
 
         # get pressure logging rate from config file
         #
