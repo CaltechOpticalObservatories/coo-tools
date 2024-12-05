@@ -372,24 +372,25 @@ def get_tpg(**hconfig):
     # first the date is added, then each channel requested in the order requested
 
     try:
-        # send command to read pressure
-        sock.sendall( b'PR1\r\n' )
+        for ichan in hconfig['presschans']:
+            # send command to read pressure
+            sock.sendall( b'PR%d\r\n' % ichan )
 
-        # first response is ACK
-        ret = read_tpg( sock )
+            # first response is ACK
+            ret = read_tpg( sock )
 
-        if ret == ACK:
-            sock.sendall( ENQ )
-        else:
-            print( time.ctime(), "(get_tpg) ERROR: didn't receive ACK" )
+            if ret == ACK:
+                sock.sendall( ENQ )
+            else:
+                print( time.ctime(), "(get_tpg) ERROR: didn't receive ACK" )
 
-        # second response is the pressure
-        ret = read_tpg( sock )
-        ans = ret.decode( 'UTF-8' )
-        ans = ans.split(',')
+            # second response is the pressure
+            ret = read_tpg( sock )
+            ans = ret.decode( 'UTF-8' )
+            ans = ans.split(',')
 
-        retpress = float( ans[1] ) * 1000.
-        retlist.append( retpress )
+            retpress = float( ans[1] ) * 1000.
+            retlist.append( retpress )
 
     except Exception as ex:
         print( time.ctime(), "(get_tpg) exception: ", str(ex) )

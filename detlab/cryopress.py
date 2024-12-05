@@ -69,6 +69,7 @@ def pressure_error(argument):
 # -----------------------------------------------------------------------------
 def get_reply():
     """ Get Reply String """
+    reply = None
     while True:
         ready = select.select([sock],[],[],3)
         if ready[0]:
@@ -78,40 +79,43 @@ def get_reply():
             break
         if b'\n' in reply:
             break
-    return ret
+    return reply
 
 # -----------------------------------------------------------------------------
 # @fn     send_command
 # @brief  append <CR><LF> to command and send over socket
 # -----------------------------------------------------------------------------
-def send_command(cmd):
+def send_command(command):
     """ Send Command String """
-    cmd = cmd + "\r\n"
-    sock.sendall(cmd.encode( 'UTF-8' ))
+    command = command + "\r\n"
+    sock.sendall(command.encode( 'UTF-8' ))
 
 def read_pressure(read_type):
-    """ Read Pressure String """
-    send_command('PR1')
-    rep=get_reply()
-    if rep==ACK:
+    """ Read Pressure """
+
+    retllist = [datetime.now().strftime("%D %T")]
+    for ichan in config['presschans']:
+
+        send_command('PR%d' % ichan)
+        rep=get_reply()
+        if rep==ACK:
+            sock.sendall(ENQ)
+        else:
+            print("read: didn't receive ACK")
+
         sock.sendall(ENQ)
-    else:
-        print("read: didn't receive ACK")
+        rep=get_reply()
+        ans=rep.decode( 'UTF-8' )
+        ans=ans.split(',')
 
-    sock.sendall(ENQ)
-    rep=get_reply()
-    ans=rep.decode( 'UTF-8' )
-    ans=ans.split(',')
+        retllist.append(float(ans[1])*1000.)
 
-    if read_type== "log":
-        return float(ans[1])*1000.
-    if read_type== "read":
-        print(float(ans[1])*1000.," mTorr")
-        if int(ans[0]) != 0:
-            print(pressure_error(int(ans[0])))
-        return None
+        if read_type== "read":
+            print(float(ans[1])*1000.," mTorr chan ", ichan)
+            if int(ans[0]) != 0:
+                print(pressure_error(int(ans[0])))
 
-    return None
+    return retllist
 
 # -----------------------------------------------------------------------------
 # @fn     main
@@ -146,32 +150,53 @@ if __name__ == "__main__":
 
         # send command to read pressure
         if args.log:
-            fn = "pressure.log"
+            LOG_FILE = "pressure.log"
             timestamp = datetime.now().strftime("%Y-%m-%dT%X")
-            # read the pressure now (the "log" parameter is non-verbose)
-            pressure  = read_pressure("log")
             # if the log file has grown over 1MB in size then rename it and start a new log file
             # (assuming it exists, of course)
-            if os.path.exists(fn):
-                if os.path.getsize(fn) > 1024000:
-                    os.rename(fn, fn+"."+timestamp)
+            if os.path.exists(LOG_FILE):
+                if os.path.getsize(LOG_FILE) > 1024000:
+                    os.rename(LOG_FILE, LOG_FILE + "." + timestamp)
             # open file for append
-            logfile = open(fn, 'a+')
-            logfile.write('{:} DEWPRESS={:}\n'.format(timestamp,pressure))
-            logfile.close()
+            # read the pressure now (the "log" parameter is non-verbose)
+            pressure  = read_pressure("log")
+
+            write_tpg_header = not os.path.exists(LOG_FILE)
+
+            pressfile = open(LOG_FILE, 'a')
+
+            if write_tpg_header:
+                hdr = 'datetime, ' + config['presshdrs']
+                pressfile.write(hdr + '\n')
+
+            list_format = '{:}' + config['pressfmts'] + '\n'
+
+            pressfile.write(list_format.format(*pressure))
+            pressfile.close()
 
         # turn power on|off
         if args.power:
+            cmd = 'SEN'
             if args.power[0] == 'on':
-                send_command('SEN,2,0,0,0,0,0')
+                for chan in range(1, config['pressnumchans']):
+                    if chan in config['presschans']:
+                        cmd += ',2'
+                    else:
+                        cmd += ',0'
             elif args.power[0] == 'off':
-                send_command('SEN,1,0,0,0,0,0')
+                for chan in range(1, config['pressnumchans']):
+                    if chan in config['presschans']:
+                        cmd += ',1'
+                    else:
+                        cmd += ',0'
             # or query the power status
             elif args.power[0] == '?':
-                send_command('SEN,0,0,0,0,0,0')
+                for chan in range(1, config['pressnumchans']):
+                    cmd += ',0'
             else:
                 print("power: must specify on|off|?")
                 sys.exit(1)
+            send_command(cmd)
             ret=get_reply()
             if ret==ACK:
                 sock.sendall(ENQ)
@@ -194,8 +219,8 @@ if __name__ == "__main__":
             ret=get_reply()
             print(ret)
 
-    except socket.error as se:
-        if se.errno == errno.EHOSTUNREACH:
+    except socket.error as sock_err:
+        if sock_err.errno == errno.EHOSTUNREACH:
             print("error")
     finally:
         if sock:
