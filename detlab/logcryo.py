@@ -656,7 +656,7 @@ def logpress(**pconfig):
                     hdr = 'datetime, ' + pconfig['presshdrs']
                     tpgpressfile.write( hdr + '\n' )
 
-                list_format = '{:}' + pconfig['pressfmts'] + '\n'
+                list_format = '{:} ' + pconfig['pressfmts'] + '\n'
 
                 tpgpressfile.write( list_format.format(*tpgpress) )
                 tpgpressfile.close()

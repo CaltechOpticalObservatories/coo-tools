@@ -169,7 +169,7 @@ if __name__ == "__main__":
                 hdr = 'datetime, ' + config['presshdrs']
                 pressfile.write(hdr + '\n')
 
-            list_format = '{:}' + config['pressfmts'] + '\n'
+            list_format = '{:} ' + config['pressfmts'] + '\n'
 
             pressfile.write(list_format.format(*pressure))
             pressfile.close()
