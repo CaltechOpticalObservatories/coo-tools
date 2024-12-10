@@ -1,8 +1,8 @@
 <html>
 <head>
 <title>PROJECT</title>
-<script type="text/javascript" src="https://unpkg.com/dygraphs@2.2.1/dist/dygraph.min.js"></script>
-<link rel="stylesheet" type="text/css" href="https://unpkg.com/dygraphs@2.2.1/dist/dygraph.min.css" />
+<script type="text/javascript" src="/js/dygraph.min.js"></script>
+<link rel="stylesheet" type="text/css" href="/css/dygraph.css" />
 <style type="text/css">
   #temperature .dygraph-legend {
     width: 100px;
