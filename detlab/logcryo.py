@@ -86,6 +86,10 @@ NAK  = b'\x15\x0d\x0a'
 ENQ  = b'\x05'
 
 # -----------------------------------------------------------------------------
+# @class  ProgramKilled
+# @brief  program killed exception
+# @param  none
+# @return none
 # -----------------------------------------------------------------------------
 class ProgramKilled( Exception ):
     """ Class to handle program killed """
@@ -104,6 +108,9 @@ def signal_handler( signum, frame ):
     raise ProgramKilled
 
 # -----------------------------------------------------------------------------
+# @class   Job
+# @brief   Class for handling threading jobs
+# @inherit threading.Thread
 # -----------------------------------------------------------------------------
 class Job( threading.Thread ):
     """ Class to handle jobs """
@@ -127,7 +134,6 @@ class Job( threading.Thread ):
         while not self.stopped.wait( self.interval.total_seconds() ):
             self.execute( *self.args, **self.kwargs )
 
-
 # -----------------------------------------------------------------------------
 # @fn     open_socket
 # @brief  opens a socket to a given host:port
@@ -136,7 +142,7 @@ class Job( threading.Thread ):
 # @return On success returns a handle to that socket.
 #         On error, returns False
 # -----------------------------------------------------------------------------
-def open_socket(host,port):
+def open_socket(host, port):
     """ Open socket """
     sock = None
     for res in socket.getaddrinfo(host, port, socket.AF_INET,
@@ -166,11 +172,11 @@ def open_socket(host,port):
     sock.settimeout(SOCK_TIMEOUT)
     return sock
 
-
 # -----------------------------------------------------------------------------
 # @fn     read_tpg
-# @brief
+# @brief  read TPG controller
 # @param  sock
+# @return TPG response
 # -----------------------------------------------------------------------------
 def read_tpg( sock ):
     """ Read TPG controller """
@@ -186,12 +192,13 @@ def read_tpg( sock ):
             break
     return ret
 
-
 # -----------------------------------------------------------------------------
 # @fn     sen_onoff
 # @brief  turn sensor on/off
-# @param  host
-# @param  port
+# @param  chan - channel to operate on
+# @param  onoff - True to turn on, False to turn off
+# @param  **hconfig - configuration dictionary
+# @return command response
 # -----------------------------------------------------------------------------
 def sen_onoff(chan, onoff, **hconfig):
     """ Set sensor state
@@ -285,8 +292,9 @@ def sen_onoff(chan, onoff, **hconfig):
 # -----------------------------------------------------------------------------
 # @fn     sen_stat
 # @brief  sensor status (0 - no gauge, 1 - off, 2 - on)
-# @param  host
+# @param  **hconfig - configuration dictionary
 # @param  port
+# @return status list with one entry per sensor
 # -----------------------------------------------------------------------------
 def sen_stat(**hconfig):
     """ Get sensor state
@@ -352,8 +360,8 @@ def sen_stat(**hconfig):
 # -----------------------------------------------------------------------------
 # @fn     get_tpg
 # @brief  send command to TPG
-# @param  host
-# @param  port
+# @param  **hconfig - configuration dictionary
+# @return TPG response
 # -----------------------------------------------------------------------------
 def get_tpg(**hconfig):
     """ Get TPG reading """
@@ -413,18 +421,8 @@ def get_tpg(**hconfig):
 # -----------------------------------------------------------------------------
 # @fn     get_temps
 # @brief  send command to Lakeshore to read temps and heaters
-# @param  host
-# @param  port
-# @param  channels, a list of temperature channels to read, IE. ['A','B', etc.]
-# @param  heaters, a list of heaters to read, IE. ['1','2']
+# @param  **hconfig - configuration dictionary
 # @return list of return values in the order of the channels submitted
-#
-# When talking to the Perle terminal server, if busy then this function will
-# return 'BSY'. If there was an error opening the socket then it returns 'ERR'.
-# Values that can't be converted to float are returned as numpy.nan
-#
-# return list is [ <date>, <ch1>, <ch2>, ..., <heater1>, ... ]
-#
 # -----------------------------------------------------------------------------
 def get_temps(**hconfig):
     """ Get temperatures """
@@ -515,10 +513,8 @@ def get_temps(**hconfig):
 # -----------------------------------------------------------------------------
 # @fn     get_press
 # @brief  send command to pressure gauge to read pressure
-# @param  none
+# @param  **hconfig - configuration dictionary
 # @return none
-#
-# This function is called by the scheduler.
 # -----------------------------------------------------------------------------
 def get_press(**hconfig):
     """ Get pressures """
@@ -561,6 +557,7 @@ def get_press(**hconfig):
 # @fn     check_files
 # @brief  checks that the needed file structure exists
 # @param  save_path, path where log file (csv) will be created
+# @param  **fargs - configuration dictionary
 # @return True on success, False on error
 # -----------------------------------------------------------------------------
 def check_files( save_path, **fargs ):
@@ -618,6 +615,7 @@ def check_files( save_path, **fargs ):
 # @fn     make_index
 # @brief  creates index html for days of logging
 # @param  index_path, path to directory where date index will be maintained
+# @param  **fargs - configuration dictionary
 # @return True on success, False on error
 # -----------------------------------------------------------------------------
 def make_index(index_path, **fargs):
@@ -651,8 +649,8 @@ def make_index(index_path, **fargs):
 
 # -----------------------------------------------------------------------------
 # @fn     logpress
-# @brief  workhorse function, calls get_press and does the logging
-# @param  none
+# @brief  workhorse function, calls get_tpg and does the logging
+# @param  **pconfig - configuration dictionary
 # @return none
 #
 # This function is called by the scheduler.
@@ -661,6 +659,7 @@ def logpress(**pconfig):
     """ Log Pressure """
 
     project_path=os.path.join(pconfig['logroot'], pconfig['name'])
+    print(time.ctime(), "(logpress) starting")
 
     curr_year = datetime.now().strftime("%Y")
 
@@ -732,7 +731,7 @@ def logpress(**pconfig):
 # -----------------------------------------------------------------------------
 # @fn     logtemp
 # @brief  workhorse function, calls get_temps and does the logging
-# @param  none
+# @param  **tconfig - configuration dictionary
 # @return none
 #
 # This function is called by the scheduler.
