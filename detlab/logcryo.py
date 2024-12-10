@@ -10,9 +10,9 @@ Log cryostat info
 REQUIREMENTS:
 
 1. install dygraph.min.js in web server's document root js directory:
-    e.g. sudo cp dygraph.min.js /Library/WebServer/Documents/js/
+    e.g., sudo cp dygraph.min.js /Library/WebServer/Documents/js/
 2. install dygraph.css in web server's document root css directory:
-    e.g. sudo cp dygraph.css /Library/WebServer/Documents/css/
+    e.g., sudo cp dygraph.css /Library/WebServer/Documents/css/
 
 HOW TO USE:
 
@@ -66,7 +66,6 @@ from pathlib import Path
 import numpy
 
 SRC_PATH = os.path.dirname(str(Path(__file__)))
-YEAR = datetime.now().strftime("%Y")
 
 # random period retry boundaries --
 # for retry, wait a random period between RND0 and RND1 seconds
