@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    @file      tpg.py
+    @file      cryopress.py
     @brief     communcations client for Pfeiffer TPG 361 pressure gauge
     @author    David Hale <dhale@astro.caltech.edu>
     @date      2015-09-25
@@ -17,14 +17,6 @@ from datetime import datetime
 import socket
 import select
 import argparse
-# read config file
-with open('logcryo.json') as cfg_fl:
-    config = json.load(cfg_fl)
-# -----------------------------------------------------------------------------
-# where the pressure gauge is located
-# -----------------------------------------------------------------------------
-host = config['presshost']
-port = config['pressport']
 
 # -----------------------------------------------------------------------------
 # control codes
@@ -123,7 +115,10 @@ def read_pressure(read_type):
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
 
-    parser=argparse.ArgumentParser(description='Pfeiffer TPG 361 controller')
+    parser=argparse.ArgumentParser(description='Pfeiffer TPG controller')
+    parser.add_argument('config_file',
+                        help='.json file with configuration parameters',
+                        default=None)
     parser.add_argument('--power', metavar='[on|off|?]', nargs=1,
                         type=str, help='turn gauge on|off or read state with ?')
     parser.add_argument('--read', action='store_true',
@@ -133,6 +128,19 @@ if __name__ == "__main__":
     parser.add_argument('--com', metavar='mnemonic', nargs=1, type=str,
                         help='send mnemonic command string to controller (no spaces!)')
     args=parser.parse_args()
+
+    # read config file
+    if args.config_file:
+        with open(args.config_file) as cfg_fl:
+            config = json.load(cfg_fl)
+    else:
+        with open('logcryo.json') as cfg_fl:
+            config = json.load(cfg_fl)
+    # -----------------------------------------------------------------------------
+    # where the pressure gauge is located
+    # -----------------------------------------------------------------------------
+    host = config['presshost']
+    port = config['pressport']
 
     if len(sys.argv)==1:
         sys.exit(1)
@@ -169,7 +177,7 @@ if __name__ == "__main__":
                 hdr = 'datetime, ' + config['presshdrs']
                 pressfile.write(hdr + '\n')
 
-            list_format = '{:} ' + config['pressfmts'] + '\n'
+            list_format = '{:}, ' + config['pressfmts'] + '\n'
 
             pressfile.write(list_format.format(*pressure))
             pressfile.close()
@@ -191,8 +199,7 @@ if __name__ == "__main__":
                         cmd += ',0'
             # or query the power status
             elif args.power[0] == '?':
-                for chan in range(1, config['pressnumchans']):
-                    cmd += ',0'
+                pass
             else:
                 print("power: must specify on|off|?")
                 sys.exit(1)
