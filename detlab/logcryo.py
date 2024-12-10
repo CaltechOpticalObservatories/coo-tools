@@ -576,7 +576,10 @@ def check_files( save_path, **fargs ):
             print( time.ctime(), "(check_files) creating %s" % html )
             index_html_outfile = open( html, 'a' )
             # the template is htmsrc
-            htmsrc = SRC_PATH + "/index-html-src.in"
+            if SRC_PATH:
+                htmsrc = SRC_PATH + "/index-html-src.in"
+            else:
+                htmsrc = "index-html-src.in"
             if not os.path.exists( htmsrc ):
                 print( time.ctime(), "(check_files) ERROR: missing htmsrc file: ", htmsrc )
                 return False
@@ -584,7 +587,8 @@ def check_files( save_path, **fargs ):
             findlist = [ "PROJECT", "HEATERLABELONE", "HEATERLABELTWO" ]
             # the list of things to replace them with
             replacelist = [ fargs['name'].upper() ]
-            replacelist += [ fargs['heater_header'] ]
+            replacelist += [ fargs['heater_header'][0] ]
+            replacelist += [ fargs['heater_header'][1] ]
             with open( htmsrc ) as inputfile:
                 # read a line at a time from "htmsrc" file
                 for line in inputfile:
@@ -600,9 +604,13 @@ def check_files( save_path, **fargs ):
         # dygraph-combined.js is the Javascript which does the graphing magic.
         # need to have at least a symlink in each directory
         dylink = save_path + "/dygraph-combined.js"
-        if not os.path.exists(dylink):
+        if not os.path.islink(dylink):
+            print(dylink)
             # The actual Javascript is here
-            dysrc  = SRC_PATH + "/dygraph-combined.js"
+            if SRC_PATH:
+                dysrc  = SRC_PATH + "/dygraph-combined.js"
+            else:
+                dysrc = "dygraph-combined.js"
             os.symlink(dysrc, dylink)
             print( time.ctime(), "(check_files) creating symlink %s -> %s" % (dylink, dysrc) )
 
@@ -656,7 +664,7 @@ def logpress(**pconfig):
                     hdr = 'datetime, ' + pconfig['presshdrs']
                     tpgpressfile.write( hdr + '\n' )
 
-                list_format = '{:} ' + pconfig['pressfmts'] + '\n'
+                list_format = '{:}, ' + pconfig['pressfmts'] + '\n'
 
                 tpgpressfile.write( list_format.format(*tpgpress) )
                 tpgpressfile.close()
@@ -846,6 +854,13 @@ if __name__ == "__main__":
         #
         if 'temphdrs' in config:
             temp_hdrs = config['temphdrs'].split(',')
+            htr_hdrs = []
+            for thdr in temp_hdrs:
+                if "HTR" in thdr:
+                    htr_hdrs.append(thdr)
+            if len(htr_hdrs) != 2:
+                htr_hdrs = ["HTR1", "HTR2"]
+            config['heater_header'] = htr_hdrs
         else:
             print( time.ctime(), "(main) ERROR: %s missing config key "
                                  "'temphdrs'" % args.config_file )
@@ -876,6 +891,8 @@ if __name__ == "__main__":
         #
         if 'temprate' not in config:
             config['temprate'] = 60
+    else:
+        config['heater_header'] = ["HTR1", "HTR2"]
 
     # If we're logging pressure then get everything needed for that
     #
@@ -889,7 +906,7 @@ if __name__ == "__main__":
             print( time.ctime(), "(main) ERROR: %s missing config key "
                                  "'pressnumchans'" % args.config_file )
             sys.exit(1)
-        if len(press_num_channels) <= 0:
+        if press_num_channels <= 0:
             print( time.ctime(), "(main) ERROR: 'pressnumchans' controller "
                                  "must have at least one channel" )
             sys.exit(1)
