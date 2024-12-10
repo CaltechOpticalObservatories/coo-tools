@@ -640,6 +640,7 @@ def make_index(index_path, **fargs):
 
     lastmonth = "00"
     date_list = glob.glob( index_path + "/%s????" % curr_year )
+    date_list.sort(reverse=True)
     for datef in date_list:
         yeardate = os.path.basename(datef)
         mm = yeardate[4:6]
@@ -696,7 +697,8 @@ def logpress(**pconfig):
                 if new_day:
                     hdr = 'datetime, ' + pconfig['presshdrs']
                     tpgpressfile.write( hdr + '\n' )
-                    make_index(index_path, **pconfig)
+                    if not pconfig['logtemps']:
+                        make_index(index_path, **pconfig)
 
                 list_format = '{:}, ' + pconfig['pressfmts'] + '\n'
 
@@ -957,7 +959,8 @@ if __name__ == "__main__":
                                  "'presschans'" % args.config_file )
             sys.exit(1)
         if len(press_channels) <= 0:
-            print( time.ctime(), "(main) ERROR: 'presschans' must have at least one channel" )
+            print( time.ctime(), "(main) ERROR: 'presschans' must have "
+                                 "at least one active channel" )
             sys.exit(1)
 
         # get the pressure channel headers from the config file
