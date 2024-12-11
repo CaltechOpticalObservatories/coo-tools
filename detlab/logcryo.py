@@ -635,17 +635,17 @@ def make_index(index_path, **fargs):
     ihfile.write( "<h3>%s data logs %s</h3>\n" % (fargs['name'].upper(), curr_year) )
     ihfile.write("\n")
 
-    lastmonth = "00"
+    lastmonth = 0
     date_list = glob.glob( index_path + "/%s????" % curr_year )
     date_list.sort(reverse=True)
     for datef in date_list:
         yeardate = os.path.basename(datef)
         mm = yeardate[4:6]
         dd = yeardate[6:]
-        if dd != lastmonth:
-            ihfile.write( "<br>" )
-            lastmonth = dd
-        ihfile.write("<a href=\"%s\">%s-%s-%s</a><br>" % ( yeardate, curr_year, mm, dd ) )
+        if int(mm) != lastmonth:
+            ihfile.write( "<br>\n" )
+            lastmonth = int(mm)
+        ihfile.write("<a href=\"%s\">%s-%s-%s</a><br>\n" % ( yeardate, curr_year, mm, dd ) )
 
 # -----------------------------------------------------------------------------
 # @fn     logpress
