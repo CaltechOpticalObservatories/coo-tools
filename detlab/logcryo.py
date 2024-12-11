@@ -9,9 +9,9 @@ Log cryostat info
 
 REQUIREMENTS:
 
-1. install dygraph.min.js in web server's document root js directory:
+1. install dygraph.min.js in the web server's document root js directory:
     e.g., sudo cp dygraph.min.js /Library/WebServer/Documents/js/
-2. install dygraph.css in web server's document root css directory:
+2. install dygraph.css in the web server's document root css directory:
     e.g., sudo cp dygraph.css /Library/WebServer/Documents/css/
 
 HOW TO USE:
