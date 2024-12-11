@@ -169,11 +169,11 @@ if __name__ == "__main__":
             # read the pressure now (the "log" parameter is non-verbose)
             pressure  = read_pressure("log")
 
-            write_tpg_header = not os.path.exists(LOG_FILE)
+            new_day = not os.path.exists(LOG_FILE)
 
             pressfile = open(LOG_FILE, 'a')
 
-            if write_tpg_header:
+            if new_day:
                 hdr = 'datetime, ' + config['presshdrs']
                 pressfile.write(hdr + '\n')
 
