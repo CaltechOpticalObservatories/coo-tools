@@ -667,6 +667,7 @@ def logpress(**pconfig):
     save_path = project_path + "/" + curr_year + "/" + datetime.now().strftime("%Y%m%d")
     index_path = project_path + "/" + curr_year
     logfile = save_path + "/press.csv"
+    dbfile = project_path + "/pressure.csv"
     if not check_files( save_path, **pconfig ):
         print( time.ctime(), "(logpress) ERROR setting up file structure" )
         return
@@ -679,6 +680,7 @@ def logpress(**pconfig):
         print(tpgpress)
 
         tpgpressfile = None
+        dbpressfile = None
         if tpgpress is None:
             # no attempt to log nor try again on error
             break
@@ -689,25 +691,34 @@ def logpress(**pconfig):
             try:
                 # new day?
                 new_day = not os.path.exists(logfile)
+                new_db = not os.path.exists(dbfile)
 
                 tpgpressfile = open(logfile, 'a')
+                dbpressfile = open(dbfile, 'a')
 
                 if new_day:
                     hdr = 'datetime, ' + pconfig['presshdrs']
                     tpgpressfile.write( hdr + '\n' )
                     if not pconfig['logtemps']:
                         make_index(index_path, **pconfig)
+                if new_db:
+                    hdr = 'datetime, ' + pconfig['presshdrs']
+                    dbpressfile.write( hdr + '\n' )
 
                 list_format = '{:}, ' + pconfig['pressfmts'] + '\n'
 
                 tpgpressfile.write( list_format.format(*tpgpress) )
                 tpgpressfile.close()
+                dbpressfile.write( list_format.format(*tpgpress) )
+                dbpressfile.close()
                 break
 
             except Exception as ex:
                 print( time.ctime(), "(logpress) exception:", str(ex) )
                 if tpgpressfile is not None:
                     tpgpressfile.close()
+                if dbpressfile is not None:
+                    dbpressfile.close()
                 return
 
         # wait some random period between RND0 and RND1 sec before trying again
