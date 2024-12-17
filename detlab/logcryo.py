@@ -65,6 +65,9 @@ import threading
 from pathlib import Path
 import numpy
 
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import SYNCHRONOUS
+
 SRC_PATH = os.path.dirname(str(Path(__file__)))
 
 # random period retry boundaries --
@@ -406,6 +409,25 @@ def get_tpg(**hconfig):
 
             retpress = float( ans[1] ) * 1000.
             retlist.append( retpress )
+
+            if hconfig['influxdb_client']:
+                if 'pressbucket' in hconfig:
+                    print("Connecting to InfluxDB...")
+                    db_client = InfluxDBClient(url=hconfig['influxdb_host'],
+                                               token=hconfig['influxdb_token'],
+                                               org=hconfig['influxdb_org'])
+                    write_api = db_client.write_api(write_options=SYNCHRONOUS)
+                    point = (
+                        Point("measurement")
+                        .tag("channel", ichan)
+                        .field("pressure", retpress)
+                    )
+                    print("Writing to InfluxDB... ", point)
+                    write_api.write(bucket=hconfig['pressbucket'],
+                                    org=hconfig['influxdb_org'],
+                                    record=point)
+                else:
+                    print("WARNING: Missing config key 'pressbucket': cannot write to InfluxDB.")
 
     except Exception as ex:
         print( time.ctime(), "(get_tpg) exception: ", str(ex) )
@@ -847,6 +869,13 @@ if __name__ == "__main__":
     else:
         print( time.ctime(), "(main) ERROR: %s missing config key 'name'" % args.config_file )
         sys.exit(1)
+
+    if 'influxdb_host' in config and 'influxdb_token' in config and 'influxdb_org' in config:
+        print(time.ctime(), "Will connect to influxDB.")
+        config['influxdb_client'] = True
+    else:
+        print(time.ctime(), "Will NOT connect to influxDB.")
+        config['influxdb_client'] = False
 
     # need to have a log root dir and it can't be empty
     #
