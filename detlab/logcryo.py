@@ -411,23 +411,20 @@ def get_tpg(**hconfig):
             retlist.append( retpress )
 
             if hconfig['influxdb_client']:
-                if 'pressbucket' in hconfig:
-                    print("Connecting to InfluxDB...")
-                    db_client = InfluxDBClient(url=hconfig['influxdb_host'],
-                                               token=hconfig['influxdb_token'],
-                                               org=hconfig['influxdb_org'])
-                    write_api = db_client.write_api(write_options=SYNCHRONOUS)
-                    point = (
-                        Point("measurement")
-                        .tag("channel", ichan)
-                        .field("pressure", retpress)
-                    )
-                    print("Writing to InfluxDB... ", point)
-                    write_api.write(bucket=hconfig['pressbucket'],
-                                    org=hconfig['influxdb_org'],
-                                    record=point)
-                else:
-                    print("WARNING: Missing config key 'pressbucket': cannot write to InfluxDB.")
+                print("Connecting to InfluxDB...")
+                db_client = InfluxDBClient(url=hconfig['influxdb_host'],
+                                           token=hconfig['influxdb_token'],
+                                           org=hconfig['influxdb_org'])
+                write_api = db_client.write_api(write_options=SYNCHRONOUS)
+                point = (
+                    Point("measurement")
+                    .tag("channel", ichan)
+                    .field("pressure", retpress)
+                )
+                print("Writing to InfluxDB... ", point)
+                write_api.write(bucket=hconfig['name'].upper(),
+                                org=hconfig['influxdb_org'],
+                                record=point)
 
     except Exception as ex:
         print( time.ctime(), "(get_tpg) exception: ", str(ex) )
