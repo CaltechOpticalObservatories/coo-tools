@@ -2,13 +2,12 @@
     "name": "my_project",
     "influxdb_host": "http://localhost:8086",
     "influxdb_token": "",
-    "incluxdb_org": "My Organization",
+    "influxdb_org": "My Organization",
     "logroot": "/home/username/public_html",
     "temphost": "lakeshore",
     "tempport": 7777,
     "temprate": 60,
     "tempchans": "A,B,C,D,1,2",
-    "tempbucket": "Temperature Bucket",
     "temphdrs": "CCD, CP1, CF1, CF2, HTR1, HTR2",
     "tempfmts": "{:.4f}, {:.4f}, {:.3f}, {:.3f}, {:.2f}, {:.2f}",
     "presshost": "pfeiffer",
@@ -17,7 +16,6 @@
     "pressrate": 60,
     "pressnumchans": 6,
     "presschans": [1],
-    "pressbucket": "Pressure Bucket",
     "presshdrs": "pressure",
     "pressfmts": "{:.4f}"
 }
