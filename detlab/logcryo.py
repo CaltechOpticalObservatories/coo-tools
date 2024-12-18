@@ -17,11 +17,19 @@ REQUIREMENTS:
 HOW TO USE:
 
 1. edit logcryo.json file (see format below) to define the project name,
-        logging root, controller hosts, channel info, etc.
+        influxdb connection (optional), logging root, controller hosts,
+        channel info, etc.
+2. for temperatures, it is assumed that heater channels are numbers, while
+        sensor channels are single letters (see example below).
+2. if using influxdb, it assumes that a bucket with an uppercase name of the
+        project exists in the DB.
 
 *.json file requirements:
 {
     "name": <project name>
+    "influxdb_url": <influxdb url>
+    "influxdb_token": <influxdb auth token>
+    "influxdb_org": <influxdb organization name>
     "logroot": <logging root directory>
     "temphost": <hostname or IP address for temperature source (str)>
                 (i.e. Lakeshore, terminal server, etc.)
@@ -412,7 +420,7 @@ def get_tpg(**hconfig):
 
             if hconfig['influxdb_client']:
                 print("Connecting to InfluxDB...")
-                db_client = InfluxDBClient(url=hconfig['influxdb_host'],
+                db_client = InfluxDBClient(url=hconfig['influxdb_url'],
                                            token=hconfig['influxdb_token'],
                                            org=hconfig['influxdb_org'])
                 write_api = db_client.write_api(write_options=SYNCHRONOUS)
@@ -867,7 +875,7 @@ if __name__ == "__main__":
         print( time.ctime(), "(main) ERROR: %s missing config key 'name'" % args.config_file )
         sys.exit(1)
 
-    if 'influxdb_host' in config and 'influxdb_token' in config and 'influxdb_org' in config:
+    if 'influxdb_url' in config and 'influxdb_token' in config and 'influxdb_org' in config:
         print(time.ctime(), "Will connect to influxDB.")
         config['influxdb_client'] = True
     else:

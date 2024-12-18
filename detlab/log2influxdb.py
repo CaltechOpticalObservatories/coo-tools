@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """ log2influxdb - Tool for ingesting old CSV files into influxDB
+
+    Uses .json config file with the same format as the logcryo.py routine.
 """
 import sys
 import os
@@ -59,7 +61,7 @@ if __name__ == "__main__":
         config = json.load(confgf)
 
     print("Connecting to InfluxDB...")
-    db_client = InfluxDBClient(url=config['influxdb_host'],
+    db_client = InfluxDBClient(url=config['influxdb_url'],
                                token=config['influxdb_token'],
                                org=config['influxdb_org'])
     write_api = db_client.write_api(write_options=SYNCHRONOUS)

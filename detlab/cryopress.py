@@ -145,7 +145,7 @@ if __name__ == "__main__":
         with open('logcryo.json') as cfg_fl:
             config = json.load(cfg_fl)
 
-    if 'influxdb_host' in config and 'influxdb_token' in config and 'influxdb_org' in config:
+    if 'influxdb_url' in config and 'influxdb_token' in config and 'influxdb_org' in config:
         config['influxdb_client'] = True
     else:
         config['influxdb_client'] = False
@@ -184,7 +184,7 @@ if __name__ == "__main__":
 
             if config['influxdb_client']:
                 print("Connecting to InfluxDB...")
-                db_client = InfluxDBClient(url=config['influxdb_host'],
+                db_client = InfluxDBClient(url=config['influxdb_url'],
                                            token=config['influxdb_token'],
                                            org=config['influxdb_org'])
                 write_api = db_client.write_api(write_options=SYNCHRONOUS)
