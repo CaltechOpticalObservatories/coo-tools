@@ -686,18 +686,21 @@ def make_index(index_path, **fargs):
 def logpress(**pconfig):
     """ Log Pressure """
 
-    project_path=os.path.join(pconfig['logroot'], pconfig['name'])
     print(time.ctime(), "(logpress) starting")
+    if pconfig['text_output']:
+        project_path = os.path.join(pconfig['logroot'], pconfig['name'])
 
-    curr_year = datetime.now().strftime("%Y")
-
-    # create log file and needed paths if necessary
-    save_path = project_path + "/" + curr_year + "/" + datetime.now().strftime("%Y%m%d")
-    index_path = project_path + "/" + curr_year
-    logfile = save_path + "/press.csv"
-    if not check_files( save_path, **pconfig ):
-        print( time.ctime(), "(logpress) ERROR setting up file structure" )
-        return
+        curr_year = datetime.now().strftime("%Y")
+        # create log file and needed paths if necessary
+        save_path = project_path + "/" + curr_year + "/" + datetime.now().strftime(
+            "%Y%m%d")
+        index_path = project_path + "/" + curr_year
+        logfile = save_path + "/press.csv"
+        if not check_files(save_path, **pconfig):
+            print(time.ctime(), "(logpress) ERROR setting up file structure")
+            return
+    else:
+        logfile = ""
 
     retry_count = 0
     # keep trying until not busy, or give up on error, until MAX_RETRIES
@@ -707,7 +710,6 @@ def logpress(**pconfig):
         print(tpgpress)
 
         tpgpressfile = None
-        dbpressfile = None
         if tpgpress is None:
             # no attempt to log nor try again on error
             break
@@ -716,29 +718,28 @@ def logpress(**pconfig):
             break
         if tpgpress != 'BSY':
             try:
-                # new day?
-                new_day = not os.path.exists(logfile)
+                if logfile:
+                    # new day?
+                    new_day = not os.path.exists(logfile)
 
-                tpgpressfile = open(logfile, 'a')
+                    tpgpressfile = open(logfile, 'a')
 
-                if new_day:
-                    hdr = 'datetime, ' + pconfig['presshdrs']
-                    tpgpressfile.write( hdr + '\n' )
-                    if not pconfig['logtemps']:
-                        make_index(index_path, **pconfig)
+                    if new_day:
+                        hdr = 'datetime, ' + pconfig['presshdrs']
+                        tpgpressfile.write( hdr + '\n' )
+                        if not pconfig['logtemps']:
+                            make_index(index_path, **pconfig)
 
-                list_format = '{:}, ' + pconfig['pressfmts'] + '\n'
+                    list_format = '{:}, ' + pconfig['pressfmts'] + '\n'
 
-                tpgpressfile.write( list_format.format(*tpgpress) )
-                tpgpressfile.close()
-                break
+                    tpgpressfile.write( list_format.format(*tpgpress) )
+                    tpgpressfile.close()
+                    break
 
             except Exception as ex:
                 print( time.ctime(), "(logpress) exception:", str(ex) )
                 if tpgpressfile is not None:
                     tpgpressfile.close()
-                if dbpressfile is not None:
-                    dbpressfile.close()
                 return
 
         # wait some random period between RND0 and RND1 sec before trying again
@@ -882,8 +883,13 @@ if __name__ == "__main__":
             print( time.ctime(), "(main) ERROR: 'logroot' in %s cannot be empty!" %
                    args.config_file )
             sys.exit(1)
+        config['text_output'] = True
     else:
-        print( time.ctime(), "(main) ERROR: %s missing config key 'logroot'" % args.config_file )
+        print( time.ctime(), "(main) missing logroot, text logging disabled")
+        config['text_output'] = False
+
+    if not config['influxdb_client'] and not config['text_output']:
+        print( time.ctime(), "(main) ERROR: database and text logging both disabled!")
         sys.exit(1)
 
     # get the temperature host and port numbers from the config file
@@ -1035,13 +1041,14 @@ if __name__ == "__main__":
             config['pressrate'] = 60
 
     # create project directory if needed
-    project_dir = os.path.join(config['logroot'], config['name'])
-    if not os.path.exists( project_dir ):
-        print( time.ctime(), "(main) creating ", project_dir )
-        try:
-            os.mkdir( project_dir )
-        except Exception as exc:
-            print( time.ctime(), "(main) exception creating directory:", str(exc) )
+    if config['text_output']:
+        project_dir = os.path.join(config['logroot'], config['name'])
+        if not os.path.exists( project_dir ):
+            print( time.ctime(), "(main) creating ", project_dir )
+            try:
+                os.mkdir( project_dir )
+            except Exception as exc:
+                print( time.ctime(), "(main) exception creating directory:", str(exc) )
 
     config['jobs_started'] = 0
     # if we have everything needed for temperature logging then start a thread
