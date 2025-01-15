@@ -89,6 +89,7 @@ def read_pressure(read_type):
     """ Read Pressure """
 
     retlist = [datetime.now().strftime("%D %T")]
+
     for ichan in config['presschans']:
 
         send_command('PR%d' % ichan)
