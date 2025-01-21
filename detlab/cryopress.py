@@ -18,6 +18,9 @@ import socket
 import select
 import argparse
 
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import SYNCHRONOUS
+
 # -----------------------------------------------------------------------------
 # control codes
 # -----------------------------------------------------------------------------
@@ -85,7 +88,8 @@ def send_command(command):
 def read_pressure(read_type):
     """ Read Pressure """
 
-    retllist = [datetime.now().strftime("%D %T")]
+    retlist = [datetime.now().strftime("%D %T")]
+
     for ichan in config['presschans']:
 
         send_command('PR%d' % ichan)
@@ -93,21 +97,26 @@ def read_pressure(read_type):
         if rep==ACK:
             sock.sendall(ENQ)
         else:
-            print("read: didn't receive ACK")
+            print("read_pressure: didn't receive ACK")
 
         sock.sendall(ENQ)
         rep=get_reply()
         ans=rep.decode( 'UTF-8' )
         ans=ans.split(',')
 
-        retllist.append(float(ans[1])*1000.)
+        try:
+            retlist.append(float(ans[1])*1000.)
 
-        if read_type== "read":
-            print(float(ans[1])*1000.," mTorr chan ", ichan)
-            if int(ans[0]) != 0:
-                print(pressure_error(int(ans[0])))
+            if read_type== "read":
+                print(float(ans[1])*1000.," mTorr chan ", ichan)
+        except IndexError:
+            print("read_pressure: didn't receive any data")
+            retlist.append(-1.0)
 
-    return retllist
+        if int(ans[0]) != 0:
+            print(pressure_error(int(ans[0])))
+
+    return retlist
 
 # -----------------------------------------------------------------------------
 # @fn     main
@@ -136,6 +145,11 @@ if __name__ == "__main__":
     else:
         with open('logcryo.json') as cfg_fl:
             config = json.load(cfg_fl)
+
+    if 'influxdb_url' in config and 'influxdb_token' in config and 'influxdb_org' in config:
+        config['influxdb_client'] = True
+    else:
+        config['influxdb_client'] = False
     # -----------------------------------------------------------------------------
     # where the pressure gauge is located
     # -----------------------------------------------------------------------------
@@ -168,6 +182,23 @@ if __name__ == "__main__":
             # open file for append
             # read the pressure now (the "log" parameter is non-verbose)
             pressure  = read_pressure("log")
+
+            if config['influxdb_client']:
+                print("Connecting to InfluxDB...")
+                db_client = InfluxDBClient(url=config['influxdb_url'],
+                                           token=config['influxdb_token'],
+                                           org=config['influxdb_org'])
+                write_api = db_client.write_api(write_options=SYNCHRONOUS)
+                for ichan in config['presschans']:
+                    point = (
+                        Point("measurement")
+                        .tag("channel", ichan)
+                        .field("pressure", pressure[ichan])
+                    )
+                    print("Writing to InfluxDB... ", point)
+                    write_api.write(bucket=config['name'].upper(),
+                                    org=config['influxdb_org'],
+                                    record=point)
 
             new_day = not os.path.exists(LOG_FILE)
 

@@ -1,5 +1,8 @@
 {
     "name": "my_project",
+    "influxdb_url": "http://localhost:8086",
+    "influxdb_token": "<tok>",
+    "influxdb_org": "My Organization",
     "logroot": "/home/username/public_html",
     "temphost": "lakeshore",
     "tempport": 7777,
@@ -9,7 +12,6 @@
     "tempfmts": "{:.4f}, {:.4f}, {:.3f}, {:.3f}, {:.2f}, {:.2f}",
     "presshost": "pfeiffer",
     "pressport": 8000,
-    "pressmodel": "TPG366",
     "pressrate": 60,
     "pressnumchans": 6,
     "presschans": [1],
