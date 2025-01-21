@@ -873,7 +873,7 @@ if __name__ == "__main__":
         print(time.ctime(), "Will connect to influxDB.")
         config['influxdb_client'] = True
     else:
-        print(time.ctime(), "Will NOT connect to influxDB.")
+        print(time.ctime(), "Insufficient connection parameters, Will NOT connect to influxDB.")
         config['influxdb_client'] = False
 
     # need to have a log root dir and it can't be empty
