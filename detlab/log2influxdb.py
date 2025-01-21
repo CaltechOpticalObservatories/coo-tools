@@ -7,6 +7,7 @@ import sys
 import os
 import argparse
 import json
+import datetime
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 
@@ -14,7 +15,7 @@ def parse_log_date(log_date):
     """ Parse dates from old log files
     expected format: MM/DD/YY HH:MM:SS
     transform to: YYYY-MM-DDTHH:MM:SS-08:00
-    """
+
     date_split = log_date.split()[0].split('/')
     time_str = log_date.split()[1]
 
@@ -22,6 +23,15 @@ def parse_log_date(log_date):
     stamp += "T"+time_str+"-08:00"
 
     return stamp
+    """
+
+    try:
+        dt_item = datetime.datetime.strptime(log_date, "%m/%d/%y %H:%M:%S")
+        # Convert to the required format
+        return dt_item.strftime("%Y-%m-%dT%H:%M:%S-08:00")
+    except ValueError:
+        print(f"Invalid date format: {log_date}")
+        sys.exit(1)
 
 # -----------------------------------------------------------------------------
 # @fn     main
