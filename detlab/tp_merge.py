@@ -55,7 +55,7 @@ if __name__ == "__main__":
     pd_t_resamp = pd_t.resample(args.time_sample).ffill().reindex(pd_p.index)
 
     plt.plot(pd_p["pressure"], pd_t_resamp['Value'])
-    plt.title("Pressure versus Temperature time series")
+    plt.title("Pressure versus Temperature")
     plt.xlabel("mTorr")
     plt.ylabel("deg C")
     plt.show()
